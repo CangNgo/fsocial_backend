@@ -1,0 +1,24 @@
+package com.fsocial.postservice.dto.complaint;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class ComplaintDTOResponse {
+    String id;
+    String postId;
+    String userId;
+    String displayName;
+    String profileId;
+    String complaintType;
+    String termOfService;
+    LocalDateTime createDatetime;
+    boolean readding;
+}
+

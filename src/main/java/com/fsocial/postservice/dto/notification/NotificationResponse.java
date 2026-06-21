@@ -1,0 +1,32 @@
+package com.fsocial.postservice.dto.notification;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fsocial.postservice.enums.PaymentStatus;
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class NotificationResponse {
+    String id;
+    String title;
+    String message;
+    String deeplink;
+    String[] email;
+    @NotBlank
+    String ownerId;
+    boolean isRead;
+    String type;
+    String receiverId;
+    LocalDateTime examinationTime;
+    PaymentStatus paymentStatus;
+    Instant createdAt;
+}
