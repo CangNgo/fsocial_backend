@@ -1,0 +1,111 @@
+app:
+  services:
+    profile: ${PROFILE_SERVICE_URL:http://profile-service:8085}
+    notification: ${NOTIFICATION_SERVICE_URL:http://notification-service:8086}
+  resend:
+    key: ${RESEND_API_KEY}
+    form: ${RESEND_FROM}
+  Cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME}
+    apikey: ${CLOUDINARY_API_KEY}
+    secret: ${CLOUDINARY_API_SECRET}
+
+server:
+  servlet:
+    context-path: /api/v1/post
+    session:
+      timeout: 30m
+  port: ${SERVER_PORT:8080}
+spring:
+  application:
+    name: post_service
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+  mail:
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    from: ${MAIL_FROM}
+    host: smtp.gmail.com
+    port: 587
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      auto-index-creation: false
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5671}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST}
+    ssl:
+      enabled: ${RABBITMQ_SSL_ENABLED:true}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /docs
+    enabled: true
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+    persist-authorization: true
+    disable-swagger-default-url: true
+    doc-expansion: none
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  packages-to-scan: com.fsocial.postservice.controller
+
+jwt:
+  signerKey: ${JWT_SIGNER_KEY}
+  duration: 60
+  expired-time: 7
+
+firebase:
+  config-path: ${FIREBASE_CONFIG_PATH:firebase/firebase-service-account.json}
+
+otp:
+  expiration:
+    send: 5
+    verify: 600
+
+rabbitmq:
+  queue:
+    post:
+      comment:
+        delete: post.comment.delete.queue
+      attachments:
+        delete: post.attachments.delete.queue
+    score:
+      update: score.update.queue
+    interest:
+      update: interest.update.queue
+  exchange:
+    post:
+      delete: post.delete.exchange
+    interaction:
+      fanout: interaction.fanout.exchange
+
+logging:
+  level:
+    root: WARN
+    com.fsocial: INFO
