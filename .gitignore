@@ -34,3 +34,4 @@ build/
 
 ### Sensitive credentials ###
 src/main/resources/firebase/firebase-service-account.json
+.env

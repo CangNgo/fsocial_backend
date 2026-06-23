@@ -17,6 +17,7 @@ import com.fsocial.postservice.repository.PostRepository;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.CommentService;
 import com.fsocial.postservice.services.RedisService;
+import com.fsocial.postservice.util.DisplayNameUtils;
 import com.fsocial.postservice.util.MediaUploadUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -195,8 +196,7 @@ public class CommentServiceImpl implements CommentService {
                 .id(comment.getId())
                 .content(comment.getContent())
                 .countLikes(likes.size())
-                .firstName(owner == null ? "" : owner.getFirstName())
-                .lastName(owner == null ? "" : owner.getLastName())
+                .displayName(DisplayNameUtils.build(owner))
                 .userId(comment.getUserId())
                 .reply(Boolean.TRUE.equals(comment.getReply()))
                 .like(requesterId != null && likes.contains(requesterId))

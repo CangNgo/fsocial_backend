@@ -17,8 +17,7 @@ public class ReplyCommentResponse {
     String userId;
     Content content;
     Integer countLikes;
-    String firstName;
-    String lastName;
+    String displayName;
     String avatar;
     LocalDateTime createDatetime;
 }

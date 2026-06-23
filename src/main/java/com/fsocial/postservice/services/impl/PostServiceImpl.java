@@ -17,6 +17,7 @@ import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.FeedService;
 import com.fsocial.postservice.services.PostService;
 import com.fsocial.postservice.services.RedisService;
+import com.fsocial.postservice.util.DisplayNameUtils;
 import com.fsocial.postservice.util.MediaUploadUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -184,7 +185,7 @@ public class PostServiceImpl implements PostService {
         OwnerDTO owner = accountService.getOwner(postRequest.getUserId());
         post.setOwner(Owner.builder()
                 .userId(owner.getId())
-                .displayName((owner.getLastName() + " " + owner.getFirstName()))
+                .displayName(DisplayNameUtils.build(owner.getLastName(), owner.getFirstName()))
                 .avatar(owner.getAvatar())
                 .build());
         post.setContent(contentMapper.toContent(contentDTO));
@@ -330,7 +331,7 @@ public class PostServiceImpl implements PostService {
                 .countLikes(post.getLikes() == null ? 0 : post.getLikes().size())
                 .countComments(commentCount)
                 .userId(post.getOwner().getUserId())
-                .displayName(owner.getLastName().concat(" " + owner.getFirstName()))
+                .displayName(DisplayNameUtils.build(owner))
                 .avatar(owner.getAvatar())
                 .createDatetime(post.getCreateDatetime())
                 .isLike(post.getLikes() != null && post.getLikes().contains(requesterId))

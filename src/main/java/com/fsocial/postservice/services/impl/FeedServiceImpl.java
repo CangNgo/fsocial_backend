@@ -4,6 +4,7 @@ import com.fsocial.postservice.dto.post.PostResponse;
 import com.fsocial.postservice.entity.*;
 import com.fsocial.postservice.repository.*;
 import com.fsocial.postservice.services.*;
+import com.fsocial.postservice.util.DisplayNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -244,7 +245,7 @@ public class FeedServiceImpl implements FeedService {
                             .countLikes(post.getLikes() == null ? 0 : post.getLikes().size())
                             .countComments(commentCountMap.getOrDefault(post.getId(), 0))
                             .userId(post.getOwner().getUserId())
-                            .displayName(owner.getLastName().concat(" " + owner.getFirstName()))
+                            .displayName(DisplayNameUtils.build(owner))
                             .avatar(owner.getAvatar())
                             .createDatetime(post.getCreateDatetime())
                             .isLike(post.getLikes() != null && post.getLikes().contains(requesterId))

@@ -23,6 +23,7 @@ import com.fsocial.postservice.repository.TokenRepository;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.BanService;
 import com.fsocial.postservice.services.OtpService;
+import com.fsocial.postservice.util.DisplayNameUtils;
 import jodd.exception.UncheckedException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -69,7 +70,7 @@ public class AccountServiceImpl implements AccountService {
                 .map((acc) -> AccountResponse.builder()
                         .id(acc.getId())
                         .username(acc.getUsername())
-                        .displayName(acc.getLastName().concat(" " + acc.getFirstName()))
+                        .displayName(DisplayNameUtils.build(acc))
                         .avatar(acc.getAvatar())
                         .background(acc.getBackground())
                         .isKOL(acc.isKOL())
@@ -195,7 +196,7 @@ public class AccountServiceImpl implements AccountService {
             return AccountResponse.builder()
                     .id(acc.getId())
                     .username(acc.getUsername())
-                    .displayName(acc.getLastName().concat(" " + acc.getFirstName()))
+                    .displayName(DisplayNameUtils.build(acc))
                     .avatar(acc.getAvatar())
                     .background(acc.getBackground())
                     .isKOL(acc.isKOL())

@@ -14,7 +14,6 @@ public class ProfileResponse {
     String avatar;
     String bio;
     String background;
-    String lastName;
-    String firstName;
+    String displayName;
     int gender;
 }
