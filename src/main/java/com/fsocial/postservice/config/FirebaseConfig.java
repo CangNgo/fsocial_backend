@@ -12,7 +12,6 @@ import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Paths;
 
 @Configuration
 public class FirebaseConfig {
@@ -23,7 +22,8 @@ public class FirebaseConfig {
     @Bean
     public FirebaseApp firebaseApp() throws IOException {
 
-        try (InputStream serviceAccount = Paths.get(firebaseconfig).isAbsolute()
+        boolean isFileSystemPath = new java.io.File(firebaseconfig).exists();
+        try (InputStream serviceAccount = isFileSystemPath
                 ? new FileSystemResource(firebaseconfig).getInputStream()
                 : new ClassPathResource(firebaseconfig).getInputStream()) {
             FirebaseOptions options = FirebaseOptions.builder()
