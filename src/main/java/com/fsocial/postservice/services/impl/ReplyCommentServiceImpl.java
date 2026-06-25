@@ -29,11 +29,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.fsocial.postservice.util.MediaUploadUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -47,6 +47,8 @@ public class ReplyCommentServiceImpl implements ReplyCommentService {
 
     UploadMedia uploadMedia;
 
+    MediaUploadUtils mediaUploadUtils;
+
     AccountService accountService;
 
     MongoTemplate mongoTemplate;
@@ -56,18 +58,8 @@ public class ReplyCommentServiceImpl implements ReplyCommentService {
     public ReplyComment addReplyComment(ReplyCommentRequest request) throws AppCheckedException {
         String[] uripostImage = new String[0];
         if (request.getMedia() != null && request.getMedia().length > 0) {
-            MultipartFile[] validMedia = Arrays.stream(request.getMedia())
-                    .filter(file -> file != null &&
-                            !file.isEmpty() &&
-                            file.getOriginalFilename() != null &&
-                            !file.getOriginalFilename().isEmpty())
-                    .toArray(MultipartFile[]::new);
-
-            if (validMedia.length > 0) {
-                uripostImage = uploadMedia.uploadMedia(validMedia);
-            }
+            uripostImage = mediaUploadUtils.uploadValidMedia(request.getMedia());
         }
-        ;
 
         ReplyComment replyComment = replyCommentMapper.toEntity(request);
         replyComment.setContent(Content.builder()

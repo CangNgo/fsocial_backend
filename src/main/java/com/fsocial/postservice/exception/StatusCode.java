@@ -27,6 +27,7 @@ public enum StatusCode {
     METHOD_NOT_INSTALLED(230, "Method Not installed"),
     INTERNAL_SERVER_ERROR(300, "Internal Server Error"),
     UNSUPPORTED_MEDIA_TYPE(304, "Unsupported Media Type"),
+    FILE_TOO_LARGE(308, "File size exceeds the allowed limit"),
     UNAUTHENTICATED(468, "Tài khoản chưa được xác thực."),
     UPLOAD_MEDIA_FAILED(210, "Upload media failed"),
     NOT_CONTENT(211,"Not Content"),

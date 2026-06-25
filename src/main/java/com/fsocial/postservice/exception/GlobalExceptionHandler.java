@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
@@ -65,6 +66,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Response.builder()
                 .statusCode(exception.getStatus().getCode())
                 .message(exception.getMessage()).dateTime(LocalDateTime.now())
+                .build());
+    }
+
+    @ExceptionHandler(value = MaxUploadSizeExceededException.class)
+    ResponseEntity<Response> handlingMaxUploadSizeExceededException(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.badRequest().body(Response.builder()
+                .statusCode(StatusCode.FILE_TOO_LARGE.getCode())
+                .message("Tệp tải lên vượt quá giới hạn cho phép của hệ thống.")
+                .dateTime(LocalDateTime.now())
                 .build());
     }
 

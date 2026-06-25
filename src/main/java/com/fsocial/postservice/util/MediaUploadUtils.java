@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Arrays;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -20,20 +18,25 @@ public class MediaUploadUtils {
     public String[] uploadValidMedia(MultipartFile[] media) throws AppCheckedException {
         if (media == null || media.length == 0) return new String[0];
 
-        MultipartFile[] valid = Arrays.stream(media)
-                .filter(this::isValid)
-                .toArray(MultipartFile[]::new);
-
-        if (valid.length == 0) return new String[0];
+        if (!hasValidMedia(media)) return new String[0];
 
         try {
-            return uploadMedia.uploadMedia(valid);
+            return uploadMedia.uploadMedia(media);
         } catch (AppCheckedException e) {
             throw e;
         } catch (Exception e) {
             log.error("Lỗi khi tải lên tệp: {}", e.getMessage(), e);
             throw new AppCheckedException("Upload hình ảnh thất bại", StatusCode.UPLOAD_MEDIA_FAILED);
         }
+    }
+
+    private boolean hasValidMedia(MultipartFile[] media) {
+        for (MultipartFile file : media) {
+            if (isValid(file)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isValid(MultipartFile file) {
