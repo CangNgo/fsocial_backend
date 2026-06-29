@@ -63,7 +63,7 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public String uploadImage(MultipartFile file) {
         try {
-            return uploadMedia.uploadSingleMedia(file);
+            return uploadMedia.uploadSingleMedia(file).getUrl();
         } catch (AppCheckedException e) {
             throw new RuntimeException(e);
         }

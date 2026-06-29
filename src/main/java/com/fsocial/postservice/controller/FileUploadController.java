@@ -2,6 +2,7 @@ package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.Response;
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.enums.ResponseStatus;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.UploadMedia;
@@ -30,21 +31,18 @@ public class FileUploadController {;
 
     @PostMapping
     public ResponseEntity<Response> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
-
-            String[] urlfile = uploadImage.uploadMedia(file);
-
-            log.info("Upload file successfull: {}", (Object) urlfile);
+            MediaItem[] mediaItems = uploadImage.uploadMedia(file);
+            log.info("Upload file successfull: {}", (Object) mediaItems);
             return ResponseEntity.ok().body(Response.builder()
-                            .data(urlfile)
+                            .data(mediaItems)
                             .message("Upload file successful")
                             .dateTime(LocalDateTime.now())
                     .build());
-
     }
 
     @PostMapping("/messages")
-    public ApiResponse<List<String>> uploadImageInMessage(@RequestParam MultipartFile[] images) throws AppCheckedException {
-        String[] urlfile = uploadImage.uploadMedia(images);
-        return ApiResponse.buildApiResponse(Arrays.asList(urlfile), ResponseStatus.SUCCESS);
+    public ApiResponse<List<MediaItem>> uploadImageInMessage(@RequestParam MultipartFile[] images) throws AppCheckedException {
+        MediaItem[] mediaItems = uploadImage.uploadMedia(images);
+        return ApiResponse.buildApiResponse(Arrays.asList(mediaItems), ResponseStatus.SUCCESS);
     }
 }

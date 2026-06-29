@@ -1,9 +1,12 @@
 package com.fsocial.postservice.dto;
 
+import com.fsocial.postservice.entity.MediaItem;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -12,5 +15,5 @@ import lombok.NoArgsConstructor;
 public class ContentDTO {
     String text;
     String html;
-    String[] media;
+    List<MediaItem> media;
 }

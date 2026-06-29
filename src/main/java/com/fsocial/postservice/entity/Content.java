@@ -4,6 +4,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,7 +16,7 @@ public class Content {
     @Field("text")
     String text;
     @Field("media")
-    String[] media;
+    List<MediaItem> media;
     @Field("html")
     String html;
 }

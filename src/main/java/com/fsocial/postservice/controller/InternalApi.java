@@ -1,5 +1,6 @@
 package com.fsocial.postservice.controller;
 
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.UploadMedia;
 import lombok.AccessLevel;
@@ -24,14 +25,14 @@ public class InternalApi {
     UploadMedia uploadImage;
 
     @PostMapping("/upload-file")
-    public String uploadFile(@RequestParam("fileUpload") MultipartFile file) throws AppCheckedException {
-        String[] urlFile = uploadImage.uploadMedia(new MultipartFile[]{file});
-        return urlFile[0];
+    public MediaItem uploadFile(@RequestParam("fileUpload") MultipartFile file) throws AppCheckedException {
+        MediaItem[] items = uploadImage.uploadMedia(new MultipartFile[]{file});
+        return items[0];
     }
 
     @PostMapping("/upload-files")
-    public List<String> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
-        String[] urlFile = uploadImage.uploadMedia(file);
-        return Arrays.asList(urlFile);
+    public List<MediaItem> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
+        MediaItem[] items = uploadImage.uploadMedia(file);
+        return Arrays.asList(items);
     }
 }

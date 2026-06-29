@@ -5,6 +5,7 @@ import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
 import com.fsocial.postservice.entity.Comment;
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
@@ -32,8 +33,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.fsocial.postservice.util.MediaUploadUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -56,14 +57,14 @@ public class ReplyCommentServiceImpl implements ReplyCommentService {
 
     @Override
     public ReplyComment addReplyComment(ReplyCommentRequest request) throws AppCheckedException {
-        String[] uripostImage = new String[0];
+        MediaItem[] mediaItems = new MediaItem[0];
         if (request.getMedia() != null && request.getMedia().length > 0) {
-            uripostImage = mediaUploadUtils.uploadValidMedia(request.getMedia());
+            mediaItems = mediaUploadUtils.uploadValidMedia(request.getMedia());
         }
 
         ReplyComment replyComment = replyCommentMapper.toEntity(request);
         replyComment.setContent(Content.builder()
-                .media(uripostImage)
+                .media(mediaItems.length > 0 ? Arrays.asList(mediaItems) : null)
                 .text(request.getText())
                 .html(request.getHtml())
                 .build());

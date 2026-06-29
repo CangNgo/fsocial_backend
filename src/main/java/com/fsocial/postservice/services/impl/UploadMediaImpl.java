@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.AttachmentsService;
@@ -48,14 +49,16 @@ public class UploadMediaImpl implements UploadMedia {
     private static final String BYTES_KEY = "bytes";
     private static final String RESOURCE_TYPE_KEY = "resource_type";
     private static final String FORMAT_KEY = "format";
+    private static final String WIDTH_KEY = "width";
+    private static final String HEIGHT_KEY = "height";
 
     @Override
-    public String[] uploadMedia(MultipartFile[] files) throws AppCheckedException {
+    public MediaItem[] uploadMedia(MultipartFile[] files) throws AppCheckedException {
         if (files == null || files.length == 0) {
             throw new AppCheckedException("No files provided", StatusCode.FILE_NOT_FOUND);
         }
         String userId = currentUserId();
-        String[] mediaUrls = new String[files.length];
+        MediaItem[] mediaItems = new MediaItem[files.length];
         int successCount = 0;
         boolean hasOversizeFailure = false;
 
@@ -65,10 +68,10 @@ public class UploadMediaImpl implements UploadMedia {
                 continue;
             }
             try {
-                mediaUrls[i] = uploadOne(currentFile, userId);
+                mediaItems[i] = uploadOne(currentFile, userId);
                 successCount++;
             } catch (AppCheckedException e) {
-                mediaUrls[i] = null;
+                mediaItems[i] = null;
                 if (e.getStatus() == StatusCode.FILE_TOO_LARGE) {
                     hasOversizeFailure = true;
                 }
@@ -87,18 +90,18 @@ public class UploadMediaImpl implements UploadMedia {
             log.warn(PARTIAL_UPLOAD_FAILED_MESSAGE);
         }
 
-        return mediaUrls;
+        return mediaItems;
     }
 
     @Override
-    public String uploadSingleMedia(MultipartFile file) throws AppCheckedException {
+    public MediaItem uploadSingleMedia(MultipartFile file) throws AppCheckedException {
         if (file == null || file.isEmpty()) {
             throw new AppCheckedException("No file provided", StatusCode.FILE_NOT_FOUND);
         }
         return uploadOne(file, currentUserId());
     }
 
-    private String uploadOne(MultipartFile file, String userId) throws AppCheckedException {
+    private MediaItem uploadOne(MultipartFile file, String userId) throws AppCheckedException {
         File tempFile = null;
         try {
             validateFileSize(file);
@@ -117,16 +120,24 @@ public class UploadMediaImpl implements UploadMedia {
             Map uploadResult = cloudinary.uploader().upload(tempFile, uploadParams);
 
             String secureUrl = uploadResult.get(SECURE_URL_KEY).toString();
+            String resolvedType = uploadResult.get(RESOURCE_TYPE_KEY).toString();
             attachmentsService.save(AttachmentDTO.builder()
                     .publicId(uploadResult.get(PUBLIC_ID_KEY).toString())
                     .size(uploadResult.get(BYTES_KEY).toString())
-                    .resourceType(uploadResult.get(RESOURCE_TYPE_KEY).toString())
+                    .resourceType(resolvedType)
                     .fileType(uploadResult.get(FORMAT_KEY).toString())
                     .ownerId(userId)
                     .url(secureUrl)
                     .build());
 
-            return secureUrl;
+            Object rawWidth = uploadResult.get(WIDTH_KEY);
+            Object rawHeight = uploadResult.get(HEIGHT_KEY);
+            return MediaItem.builder()
+                    .url(secureUrl)
+                    .type(resolvedType)
+                    .width(rawWidth != null ? Integer.parseInt(rawWidth.toString()) : null)
+                    .height(rawHeight != null ? Integer.parseInt(rawHeight.toString()) : null)
+                    .build();
         } catch (AppCheckedException e) {
             throw e;
         } catch (Exception e) {

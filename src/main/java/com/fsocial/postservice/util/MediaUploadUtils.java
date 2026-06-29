@@ -1,5 +1,6 @@
 package com.fsocial.postservice.util;
 
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.UploadMedia;
@@ -15,10 +16,10 @@ public class MediaUploadUtils {
 
     private final UploadMedia uploadMedia;
 
-    public String[] uploadValidMedia(MultipartFile[] media) throws AppCheckedException {
-        if (media == null || media.length == 0) return new String[0];
+    public MediaItem[] uploadValidMedia(MultipartFile[] media) throws AppCheckedException {
+        if (media == null || media.length == 0) return new MediaItem[0];
 
-        if (!hasValidMedia(media)) return new String[0];
+        if (!hasValidMedia(media)) return new MediaItem[0];
 
         try {
             return uploadMedia.uploadMedia(media);

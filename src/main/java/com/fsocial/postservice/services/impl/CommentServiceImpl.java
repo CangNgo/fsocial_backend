@@ -7,6 +7,7 @@ import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.entity.Comment;
 import com.fsocial.postservice.entity.Content;
+import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -56,7 +58,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public Comment addComment(CommentDTORequest request) throws AppCheckedException {
-        String[] mediaUrls = mediaUploadUtils.uploadValidMedia(request.getMedia());
+        MediaItem[] mediaUrls = mediaUploadUtils.uploadValidMedia(request.getMedia());
 
         String postId = request.getPostId();
         Post post = postRepository.findById(postId)
@@ -76,7 +78,7 @@ public class CommentServiceImpl implements CommentService {
         return savedComment;
     }
 
-    private Comment buildComment(CommentDTORequest request, String[] mediaUrls) {
+    private Comment buildComment(CommentDTORequest request, MediaItem[] mediaUrls) {
         return Comment.builder()
                 .likes(new ArrayList<>())
                 .reply(false)
@@ -84,7 +86,7 @@ public class CommentServiceImpl implements CommentService {
                 .userId(request.getUserId())
                 .content(Content.builder()
                         .text(request.getText())
-                        .media(mediaUrls)
+                        .media(mediaUrls != null && mediaUrls.length > 0 ? Arrays.asList(mediaUrls) : null)
                         .html(request.getHtml())
                         .build())
                 .build();

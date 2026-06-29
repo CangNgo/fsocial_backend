@@ -59,11 +59,11 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDTO createPost(PostDTORequest postRequest) throws AppCheckedException {
-        String[] mediaUrls = mediaUploadUtils.uploadValidMedia(postRequest.getMedia());
+        MediaItem[] mediaItems = mediaUploadUtils.uploadValidMedia(postRequest.getMedia());
         try {
             ContentDTO contentDTO = buildContent(postRequest.getHtml(),
                     postRequest.getText(),
-                    mediaUrls);
+                    mediaItems);
             Post post = buildPost(contentDTO, postRequest);
             return postMapper.toPostDTO(postRepository.save(post));
         } catch (RuntimeException e) {
@@ -164,11 +164,11 @@ public class PostServiceImpl implements PostService {
         return postMapper.toPostDTO(saved);
     }
 
-    private ContentDTO buildContent(String html, String text, String[] media) {
+    private ContentDTO buildContent(String html, String text, MediaItem[] media) {
         return ContentDTO.builder()
                 .text(text)
                 .html(html)
-                .media(media)
+                .media(media != null && media.length > 0 ? Arrays.asList(media) : null)
                 .build();
     }
 
