@@ -17,11 +17,7 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "http://192.168.2.97:3000",
-                "https://fsocial-fe.vercel.app",
-                "https://*.vercel.app",
-                "https://fsocial.online",
-                "https://fsocial-fe-nextjs-cizq-6x6zdp4gg-cang-ngo.vercel.app"
+                "https://fsocial.online"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
