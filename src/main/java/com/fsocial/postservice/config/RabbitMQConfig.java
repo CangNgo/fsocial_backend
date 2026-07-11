@@ -1,37 +1,20 @@
 package com.fsocial.postservice.config;
 
+import com.fsocial.postservice.enums.AMQPConst;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RabbitMQConfig {
-    @Value("${rabbitmq.queue.post.comment.delete}")
-    String queueCommentDelete;
-
-    @Value("${rabbitmq.queue.post.attachments.delete}")
-    String queueCommentAttachments;
-
-    @Value("${rabbitmq.exchange.post.delete}")
-    String exchangePostDelete;
-
-    // Interaction events for feed recommendation (BRD)
-    @Value("${rabbitmq.queue.score.update}")
-    String queueScoreUpdate;
-
-    @Value("${rabbitmq.queue.interest.update}")
-    String queueInterestUpdate;
-
-    @Value("${rabbitmq.exchange.interaction.fanout}")
-    String exchangeInteractionFanout;
 
     @Bean
     Jackson2JsonMessageConverter jackson2JsonMessageConverter(){
@@ -40,17 +23,17 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue postCommentDeleteQueue() {
-        return new Queue(queueCommentDelete, true);
+        return new Queue(AMQPConst.POST_COMMENT_DELETE.getQueue(), true);
     }
 
     @Bean
     public Queue postCommentAttachmentsQueue() {
-        return new Queue(queueCommentAttachments, true);
+        return new Queue(AMQPConst.POST_ATTACHMENTS_DELETE.getQueue(), true);
     }
 
     @Bean
     public FanoutExchange postDeleteExchange(){
-        return new FanoutExchange(exchangePostDelete);
+        return new FanoutExchange(AMQPConst.POST_COMMENT_DELETE.getExchange());
     }
 
     @Bean
@@ -67,17 +50,17 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue scoreUpdateQueue() {
-        return new Queue(queueScoreUpdate, true);
+        return new Queue(AMQPConst.SCORE_UPDATE.getQueue(), true);
     }
 
     @Bean
     public Queue interestUpdateQueue() {
-        return new Queue(queueInterestUpdate, true);
+        return new Queue(AMQPConst.INTEREST_UPDATE.getQueue(), true);
     }
 
     @Bean
     public FanoutExchange interactionFanoutExchange() {
-        return new FanoutExchange(exchangeInteractionFanout);
+        return new FanoutExchange(AMQPConst.SCORE_UPDATE.getExchange());
     }
 
     @Bean
@@ -88,5 +71,24 @@ public class RabbitMQConfig {
     @Bean
     public Binding interestUpdateBinding() {
         return BindingBuilder.bind(interestUpdateQueue()).to(interactionFanoutExchange());
+    }
+
+    // --- Notification events ---
+
+    @Bean
+    public Queue createNotificationQueue() {
+        return new Queue(AMQPConst.CREATE_NOTIFICATION.getRoutingKey(), true);
+    }
+
+    @Bean
+    public DirectExchange notificationExchange() {
+        return new DirectExchange(AMQPConst.CREATE_NOTIFICATION.getExchange());
+    }
+
+    @Bean
+    public Binding createNotificationBinding() {
+        return BindingBuilder.bind(createNotificationQueue())
+                .to(notificationExchange())
+                .with(AMQPConst.CREATE_NOTIFICATION.getRoutingKey());
     }
 }

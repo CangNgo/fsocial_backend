@@ -23,6 +23,7 @@ import com.fsocial.postservice.repository.TokenRepository;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.BanService;
 import com.fsocial.postservice.services.OtpService;
+import com.fsocial.postservice.util.DefaultMediaProvider;
 import com.fsocial.postservice.util.DisplayNameUtils;
 import jodd.exception.UncheckedException;
 import lombok.AccessLevel;
@@ -53,15 +54,17 @@ public class AccountServiceImpl implements AccountService {
     BanService banService;
     TokenRepository tokenRepository;
     RefreshTokenRepository refreshTokenRepository;
+    DefaultMediaProvider defaultMediaProvider;
 
     static String DEFAULT_ROLE = "USER";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void persistAccount(AccountRegisterRequest request) {
+    public Account persistAccount(AccountRegisterRequest request) {
         Account account = saveAccount(request);
 //        createProfile(account, request);
         otpService.deleteOtp(request.getEmail(), RedisKeyType.REGISTER.getRedisKeyPrefix());
+        return account;
     }
 
     @Override
@@ -223,6 +226,11 @@ public class AccountServiceImpl implements AccountService {
         account.setRole(roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new AccountException(AccountErrorCode.ROLE_NOT_FOUND)));
         account.setStatus(true);
+
+        String seed = request.getUsername() != null ? request.getUsername() : request.getEmail();
+        account.setAvatar(defaultMediaProvider.pickAvatar(seed));
+        account.setBackground(defaultMediaProvider.pickBackground(seed));
+
         return accountRepository.save(account);
     }
 

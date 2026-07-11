@@ -1,6 +1,5 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.Response;
 import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;

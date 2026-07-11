@@ -8,13 +8,14 @@ import com.fsocial.postservice.dto.response.AccountResponse;
 import com.fsocial.postservice.dto.response.AccountStatisticRegisterDTO;
 import com.fsocial.postservice.dto.response.AccountStatisticRegisterLongDateDTO;
 import com.fsocial.postservice.dto.response.DuplicationResponse;
+import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.entity.Owner;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AccountService {
-    void persistAccount(AccountRegisterRequest request);
+    Account persistAccount(AccountRegisterRequest request);
     AccountResponse getUser(String id);
     void resetPassword(String email, String newPassword);
     ApiResponse<DuplicationResponse> checkDuplication(DuplicationRequest request);

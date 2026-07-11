@@ -28,26 +28,26 @@ public class DemoNotificationServiceImpl implements DemoNotificationService {
 
     NotificationRepository notificationRepository;
 
-    @Override
-    public NotificationResponse create(DemoNotificationRequest request) {
-        Notification.NotificationBuilder builder = Notification.builder()
-                .recipientId(request.recipientId())
-                .type(request.type())
-                .title(request.title())
-                .body(request.body())
-                .isRead(false);
-
-        if (request.type() == NotificationType.APPOINTMENT) {
-            builder.examinationTime(request.examinationTime());
-        } else if (request.type() == NotificationType.PAYMENT) {
-            PaymentStatus status = request.paymentStatus() != null
-                    ? request.paymentStatus()
-                    : PaymentStatus.UNPAID;
-            builder.paymentStatus(status);
-        }
-
-        return toResponse(notificationRepository.save(builder.build()));
-    }
+//    @Override
+//    public NotificationResponse create(DemoNotificationRequest request) {
+//        Notification.NotificationBuilder builder = Notification.builder()
+//                .recipientId(request.recipientId())
+//                .type(request.type())
+//                .title(request.title())
+//                .body(request.body())
+//                .isRead(false);
+//
+//        if (request.type() == NotificationType.APPOINTMENT) {
+//            builder.examinationTime(request.examinationTime());
+//        } else if (request.type() == NotificationType.PAYMENT) {
+//            PaymentStatus status = request.paymentStatus() != null
+//                    ? request.paymentStatus()
+//                    : PaymentStatus.UNPAID;
+//            builder.paymentStatus(status);
+//        }
+//
+//        return toResponse(notificationRepository.save(builder.build()));
+//    }
 
     @Override
     public List<NotificationGroupResponse> getByRecipient(String recipientId, NotificationType type, int page) {
@@ -73,12 +73,10 @@ public class DemoNotificationServiceImpl implements DemoNotificationService {
         return NotificationResponse.builder()
                 .id(n.getId())
                 .title(n.getTitle())
-                .message(n.getBody())
-                .receiverId(n.getRecipientId())
-                .type(n.getType() != null ? n.getType().name() : null)
+                .body(n.getBody())
+                .recipientId(n.getRecipientId())
+                .type(n.getType())
                 .isRead(n.isRead())
-                .examinationTime(n.getExaminationTime())
-                .paymentStatus(n.getPaymentStatus())
                 .createdAt(n.getCreatedAt())
                 .build();
     }

@@ -26,48 +26,48 @@ public class AppointmentReminderScheduler {
     DeviceTokenService deviceTokenService;
     FcmServiceImpl fcmService;
 
-    @Scheduled(fixedRate = 60_000)
-    public void sendAppointmentReminders() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime twoHoursLater = now.plusHours(2);
+//    @Scheduled(fixedRate = 60_000)
+//    public void sendAppointmentReminders() {
+//        LocalDateTime now = LocalDateTime.now();
+//        LocalDateTime twoHoursLater = now.plusHours(2);
+//
+//        List<Notification> upcoming = notificationRepository
+//                .findByTypeAndPushedFalseAndExaminationTimeBetween(
+//                        NotificationType.APPOINTMENT, now, twoHoursLater);
+//
+//        if (upcoming.isEmpty()) return;
+//
+//        log.info("Found {} appointment(s) to remind", upcoming.size());
+//
+//        for (Notification notification : upcoming) {
+//            List<String> tokens = deviceTokenService.getTokenByUserId(notification.getRecipientId());
+//            if (tokens.isEmpty()) {
+//                log.warn("No device tokens for recipientId={}", notification.getRecipientId());
+//                markPushed(notification);
+//                continue;
+//            }
+//
+//            try {
+//                fcmService.sendToMultipleTokens(
+//                        tokens,
+//                        notification.getTitle(),
+//                        buildBody(notification),
+//                        Map.of("notificationId", notification.getId(),
+//                               "type", NotificationType.APPOINTMENT.name())
+//                );
+//                markPushed(notification);
+//            } catch (Exception e) {
+//                log.error("Failed to push reminder for notificationId={}", notification.getId(), e);
+//            }
+//        }
+//    }
 
-        List<Notification> upcoming = notificationRepository
-                .findByTypeAndPushedFalseAndExaminationTimeBetween(
-                        NotificationType.APPOINTMENT, now, twoHoursLater);
-
-        if (upcoming.isEmpty()) return;
-
-        log.info("Found {} appointment(s) to remind", upcoming.size());
-
-        for (Notification notification : upcoming) {
-            List<String> tokens = deviceTokenService.getTokenByUserId(notification.getRecipientId());
-            if (tokens.isEmpty()) {
-                log.warn("No device tokens for recipientId={}", notification.getRecipientId());
-                markPushed(notification);
-                continue;
-            }
-
-            try {
-                fcmService.sendToMultipleTokens(
-                        tokens,
-                        notification.getTitle(),
-                        buildBody(notification),
-                        Map.of("notificationId", notification.getId(),
-                               "type", NotificationType.APPOINTMENT.name())
-                );
-                markPushed(notification);
-            } catch (Exception e) {
-                log.error("Failed to push reminder for notificationId={}", notification.getId(), e);
-            }
-        }
-    }
-
-    private String buildBody(Notification notification) {
-        if (notification.getBody() != null && !notification.getBody().isBlank()) {
-            return notification.getBody();
-        }
-        return "Bạn có lịch hẹn vào lúc " + notification.getExaminationTime();
-    }
+//    private String buildBody(Notification notification) {
+//        if (notification.getBody() != null && !notification.getBody().isBlank()) {
+//            return notification.getBody();
+//        }
+//        return "Bạn có lịch hẹn vào lúc " + notification.getExaminationTime();
+//    }
 
     private void markPushed(Notification notification) {
         notification.setPushed(true);

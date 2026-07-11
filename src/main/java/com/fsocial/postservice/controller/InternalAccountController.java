@@ -1,5 +1,6 @@
 package com.fsocial.postservice.controller;
 
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.services.AccountService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,10 @@ public class InternalAccountController {
     AccountService accountService;
 
     @GetMapping("/valid-id/{userId}")
-    public boolean validUserId(@PathVariable String userId) {
-        return accountService.existsById(userId);
+    public ApiResponse<Boolean> validUserId(@PathVariable String userId) {
+        return ApiResponse.<Boolean>builder()
+                .data(accountService.existsById(userId))
+                .message("Kiểm tra userId thành công")
+                .build();
     }
 }

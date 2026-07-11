@@ -24,7 +24,7 @@ public class ScoreUpdateConsumer {
     private final ScoringService scoringService;
     private final MongoTemplate mongoTemplate;
 
-    @RabbitListener(queues = "${rabbitmq.queue.score.update}")
+    @RabbitListener(queues = "#{@scoreUpdateQueue.name}")
     public void handleInteractionEvent(InteractionEvent event) {
         if (event == null || event.getPostId() == null) return;
 
@@ -37,14 +37,18 @@ public class ScoreUpdateConsumer {
         }
 
         postRepository.findById(postId).ifPresent(post -> {
-            Integer commentCount = commentRepository.countByPostId(postId);
-            double newScore = scoringService.calculateGlobalScore(post, commentCount == null ? 0 : commentCount);
+            int commentCount = commentRepository.countByPostId(postId) == null ? 0
+                    : commentRepository.countByPostId(postId);
+            double rawEngagement = scoringService.calculateRawEngagement(post, commentCount);
+            double newScore = scoringService.calculateGlobalScore(post, commentCount);
 
             Query query = new Query(Criteria.where("_id").is(postId));
-            Update update = new Update().set("global_score", newScore);
+            Update update = new Update()
+                    .set("global_score", newScore)
+                    .set("raw_engagement", rawEngagement);
             mongoTemplate.updateFirst(query, update, Post.class);
 
-            log.debug("Updated global_score for post {}: {}", postId, newScore);
+            log.debug("Updated global_score={} raw_engagement={} for post {}", newScore, rawEngagement, postId);
         });
     }
 }

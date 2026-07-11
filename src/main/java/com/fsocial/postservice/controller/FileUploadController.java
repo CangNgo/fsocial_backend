@@ -1,7 +1,6 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
-import com.fsocial.postservice.dto.Response;
 import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.enums.ResponseStatus;
 import com.fsocial.postservice.exception.AppCheckedException;
@@ -10,7 +9,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,14 +28,14 @@ public class FileUploadController {;
     UploadMedia uploadImage;
 
     @PostMapping
-    public ResponseEntity<Response> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
+    public ApiResponse<List<MediaItem>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
             MediaItem[] mediaItems = uploadImage.uploadMedia(file);
             log.info("Upload file successfull: {}", (Object) mediaItems);
-            return ResponseEntity.ok().body(Response.builder()
-                            .data(mediaItems)
+            return ApiResponse.<List<MediaItem>>builder()
+                            .data(Arrays.asList(mediaItems))
                             .message("Upload file successful")
                             .dateTime(LocalDateTime.now())
-                    .build());
+                    .build();
     }
 
     @PostMapping("/messages")

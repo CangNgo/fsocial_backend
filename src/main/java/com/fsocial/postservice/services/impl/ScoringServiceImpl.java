@@ -18,16 +18,15 @@ public class ScoringServiceImpl implements ScoringService {
     private static final double COLD_START_AFFINITY = 0.5;
 
     @Override
-    public double calculateGlobalScore(Post post, int commentCount) {
+    public double calculateRawEngagement(Post post, int commentCount) {
         int likeCount = post.getLikes() == null ? 0 : post.getLikes().size();
         int shareCount = post.getShareCount();
+        return likeCount * 2.0 + commentCount * 3.0 + shareCount * 5.0;
+    }
 
-        double rawScore = likeCount * 2.0
-                + commentCount * 3.0
-                + shareCount * 5.0
-                - timePenalty(post.getCreateDatetime());
-
-        return Math.max(0.0, rawScore);
+    @Override
+    public double calculateGlobalScore(Post post, int commentCount) {
+        return Math.max(0.0, calculateRawEngagement(post, commentCount) - timePenalty(post.getCreateDatetime()));
     }
 
     /**
@@ -66,9 +65,6 @@ public class ScoringServiceImpl implements ScoringService {
         double affinity = calculatePersonalAffinity(normalizedWeights, post.getTags());
         double socialBoost = isFollowingAuthor ? SOCIAL_BOOST_MULTIPLIER : 1.0;
 
-        double finalScore = globalScore * affinity * socialBoost;
-        log.debug("Post {} score: global={:.2f}, affinity={:.2f}, boost={}, final={:.2f}",
-                post.getId(), globalScore, affinity, socialBoost, finalScore);
-        return finalScore;
+        return globalScore * affinity * socialBoost;
     }
 }

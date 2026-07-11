@@ -37,9 +37,6 @@ public class Notification {
     @Field("recipient_id")
     private String recipientId;
 
-    @Field("actor_id")
-    private String actorId;
-
     /** Snapshot actor — denormalize để đọc không phải lookup user collection */
     private ActorSnapshot actor;
 
@@ -55,10 +52,6 @@ public class Notification {
     @Field("aggregated_actors")
     @Builder.Default
     private List<ActorSnapshot> aggregatedActors = new ArrayList<>();
-
-    /** Tổng số event đã gom (vd: 23 lượt like) */
-    @Field("aggregation_count")
-    private int aggregationCount;
 
     private String title;
     private String body;
@@ -80,12 +73,6 @@ public class Notification {
     @LastModifiedDate
     @Field("updated_at")
     private Instant updatedAt;
-
-    @Field("examination_time")
-    private LocalDateTime examinationTime;
-
-    @Field("payment")
-    private PaymentStatus paymentStatus;
 
     @Field("pushed")
     private boolean pushed;

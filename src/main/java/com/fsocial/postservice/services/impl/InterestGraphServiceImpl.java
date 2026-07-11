@@ -11,6 +11,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import org.bson.Document;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InterestGraphServiceImpl implements InterestGraphService {
 
+    private static final int TOP_K_INTERESTS = 10;
+
     private final UserInterestsRepository userInterestsRepository;
     private final MongoTemplate mongoTemplate;
 
@@ -28,6 +32,14 @@ public class InterestGraphServiceImpl implements InterestGraphService {
         if (tags == null || tags.isEmpty() || deltaWeight == 0) return;
 
         LocalDateTime now = LocalDateTime.now();
+
+        // Step 1: Ensure document exists (setOnInsert only, no-op if already present)
+        Query ensureDoc = new Query(Criteria.where("user_id").is(userId));
+        Update upsertDoc = new Update()
+                .setOnInsert("user_id", userId)
+                .setOnInsert("interests", new ArrayList<>())
+                .setOnInsert("updated_at", now);
+        mongoTemplate.upsert(ensureDoc, upsertDoc, UserInterests.class);
 
         for (String tag : tags) {
             // Try to increment weight on existing tag entry
@@ -43,8 +55,8 @@ public class InterestGraphServiceImpl implements InterestGraphService {
             var result = mongoTemplate.updateFirst(matchExisting, incExisting, UserInterests.class);
 
             if (result.getMatchedCount() == 0) {
-                // Tag doesn't exist yet — push new entry (upsert the document too)
-                Query matchUser = new Query(
+                // Tag not present — push new entry; guard against concurrent push with ne(tag)
+                Query matchNoTag = new Query(
                     Criteria.where("user_id").is(userId)
                             .and("interests.tag").ne(tag)
                 );
@@ -55,9 +67,12 @@ public class InterestGraphServiceImpl implements InterestGraphService {
                         .build();
                 Update pushNew = new Update()
                         .push("interests", newItem)
-                        .set("updated_at", now)
-                        .setOnInsert("user_id", userId);
-                mongoTemplate.upsert(matchUser, pushNew, UserInterests.class);
+                        .set("updated_at", now);
+                var pushResult = mongoTemplate.updateFirst(matchNoTag, pushNew, UserInterests.class);
+                if (pushResult.getMatchedCount() == 0) {
+                    // Concurrent thread already pushed this tag — retry inc
+                    mongoTemplate.updateFirst(matchExisting, incExisting, UserInterests.class);
+                }
             }
         }
         log.debug("Updated interests for user {} tags {} delta={}", userId, tags, deltaWeight);
@@ -78,10 +93,17 @@ public class InterestGraphServiceImpl implements InterestGraphService {
         Map<String, Double> raw = getRawWeights(userId);
         if (raw.isEmpty()) return Collections.emptyMap();
 
-        double total = raw.values().stream().mapToDouble(Double::doubleValue).sum();
+        // Take only top-K by weight to prevent affinity dilution
+        Map<String, Double> topK = raw.entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .limit(TOP_K_INTERESTS)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                        (a, b) -> a, LinkedHashMap::new));
+
+        double total = topK.values().stream().mapToDouble(Double::doubleValue).sum();
         if (total == 0) return Collections.emptyMap();
 
-        return raw.entrySet().stream()
+        return topK.entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         e -> e.getValue() / total));
@@ -91,32 +113,25 @@ public class InterestGraphServiceImpl implements InterestGraphService {
     public void applyDecay(double decayFactor, double removalThreshold) {
         log.info("Applying interest decay: factor={}, threshold={}", decayFactor, removalThreshold);
 
-        List<UserInterests> all = userInterestsRepository.findAll();
-        LocalDateTime now = LocalDateTime.now();
-        int decayed = 0;
-        int removed = 0;
+        // Single aggregation-pipeline updateMany — no data loaded into memory
+        var collection = mongoTemplate.getCollection(
+                mongoTemplate.getCollectionName(UserInterests.class));
 
-        for (UserInterests ui : all) {
-            List<UserInterests.InterestItem> updated = new ArrayList<>();
-            for (UserInterests.InterestItem item : ui.getInterests()) {
-                double newWeight = item.getWeight() * decayFactor;
-                if (newWeight >= removalThreshold) {
-                    updated.add(UserInterests.InterestItem.builder()
-                            .tag(item.getTag())
-                            .weight(newWeight)
-                            .updatedAt(now)
-                            .build());
-                    decayed++;
-                } else {
-                    removed++;
-                }
-            }
-            ui.setInterests(updated);
-            ui.setUpdatedAt(now);
-            userInterestsRepository.save(ui);
-        }
+        var pipeline = java.util.List.of(new Document("$set", new Document()
+                .append("interests", new Document("$filter", new Document()
+                        .append("input", new Document("$map", new Document()
+                                .append("input", "$interests")
+                                .append("in", new Document()
+                                        .append("tag", "$$this.tag")
+                                        .append("weight", new Document("$multiply",
+                                                java.util.List.of("$$this.weight", decayFactor)))
+                                        .append("updated_at", "$$NOW"))))
+                        .append("cond", new Document("$gte",
+                                java.util.List.of("$$this.weight", removalThreshold)))))
+                .append("updated_at", "$$NOW")));
 
-        log.info("Interest decay complete: {} decayed, {} removed below threshold", decayed, removed);
+        var result = collection.updateMany(new Document(), pipeline);
+        log.info("Interest decay complete: {} documents modified", result.getModifiedCount());
     }
 
     @Override

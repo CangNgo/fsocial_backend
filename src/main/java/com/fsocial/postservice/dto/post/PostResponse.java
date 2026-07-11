@@ -1,6 +1,5 @@
 package com.fsocial.postservice.dto.post;
 
-import com.fsocial.postservice.entity.Content;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -16,7 +15,7 @@ public class PostResponse {
     String id;
     String userId;
     String originPostId;
-    Content content;
+    ContentResponse content;
     Integer countLikes;
     Integer countComments;
     String displayName;

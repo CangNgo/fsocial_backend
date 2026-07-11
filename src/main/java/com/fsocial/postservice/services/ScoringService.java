@@ -8,7 +8,12 @@ import java.util.Map;
 public interface ScoringService {
 
     /**
-     * global_score = likes×2 + comments×3 + shares×5 - log(age_hours+1)×10
+     * raw_engagement = likes×2 + comments×3 + shares×5 (không penalty)
+     */
+    double calculateRawEngagement(Post post, int commentCount);
+
+    /**
+     * global_score = max(0, rawEngagement − ln(age_hours+1)×10)
      */
     double calculateGlobalScore(Post post, int commentCount);
 

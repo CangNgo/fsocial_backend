@@ -1,17 +1,22 @@
 package com.fsocial.postservice.services.impl;
 
+import com.fsocial.postservice.dto.Account.OwnerDTO;
 import com.fsocial.postservice.dto.comment.CommentDTO;
 import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
+import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.entity.Account;
+import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Comment;
 import com.fsocial.postservice.entity.Content;
 import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.entity.Post;
+import com.fsocial.postservice.enums.NotificationType;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.publisher.InteractionEventPublisher;
+import com.fsocial.postservice.publisher.NotificationEvent;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.repository.CommentRepository;
 import com.fsocial.postservice.repository.PostRepository;
@@ -54,6 +59,7 @@ public class CommentServiceImpl implements CommentService {
     AccountRepository accountRepository;
     RedisService redisService;
     InteractionEventPublisher interactionEventPublisher;
+    NotificationEvent notificationEvent;
 
     @Override
     @Transactional
@@ -75,7 +81,24 @@ public class CommentServiceImpl implements CommentService {
         // Publish async COMMENT event for score + interest update
         interactionEventPublisher.publish(postId, request.getUserId(), "COMMENT", post.getTags());
 
+        notifyOwner(post.getOwner().getUserId(), request.getUserId(), NotificationType.COMMENT_SINGLE);
+
         return savedComment;
+    }
+
+    /** Bỏ qua nếu tự bình luận trên bài viết của chính mình */
+    private void notifyOwner(String ownerId, String actorId, NotificationType type) {
+        if (ownerId == null || ownerId.equals(actorId)) return;
+        OwnerDTO actor = accountService.getOwner(actorId);
+        notificationEvent.publishCreateNotification(new NotificationDTO(
+                ownerId,
+                ActorSnapshot.builder()
+                        .userId(actor.getId())
+                        .displayName(DisplayNameUtils.build(actor.getLastName(), actor.getFirstName()))
+                        .avatarUrl(actor.getAvatar())
+                        .build(),
+                type
+        ));
     }
 
     private Comment buildComment(CommentDTORequest request, MediaItem[] mediaUrls) {
@@ -126,7 +149,13 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public String deleteComment(String commentID) {
-        commentRepository.deleteById(commentID);
+        commentRepository.findById(commentID).ifPresent(comment -> {
+            commentRepository.deleteById(commentID);
+            // Publish COMMENT_DELETE so score + interest are recomputed
+            postRepository.findById(comment.getPostId()).ifPresent(post ->
+                    interactionEventPublisher.publish(comment.getPostId(),
+                            comment.getUserId(), "COMMENT_DELETE", post.getTags()));
+        });
         return "Xóa comment thành công";
     }
 
@@ -165,6 +194,9 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public List<CommentResponse> getComments(String postId) {
         List<Comment> comments = commentRepository.findByPostId(postId);
+
+
+
         return toCommentResponses(comments, currentUserId());
     }
 
@@ -202,6 +234,7 @@ public class CommentServiceImpl implements CommentService {
                 .userId(comment.getUserId())
                 .reply(Boolean.TRUE.equals(comment.getReply()))
                 .like(requesterId != null && likes.contains(requesterId))
+                .avatar(owner.getAvatar())
                 .createDatetime(comment.getCreateDatetime())
                 .build();
     }

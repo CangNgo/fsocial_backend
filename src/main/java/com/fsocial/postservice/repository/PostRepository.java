@@ -34,11 +34,20 @@ public interface PostRepository extends MongoRepository<Post, String> {
     @Query(value = "{ 'tags': ?0, '_id': { $nin: ?1 }, 'status': true }", sort = "{ 'global_score': -1 }")
     List<Post> findByTagAndIdNotIn(String tag, List<String> excludedIds, Pageable pageable);
 
+    @Query(value = "{ 'tags': ?0, '_id': { $nin: ?1 }, 'status': true, 'created_datetime': { $gte: ?2 } }", sort = "{ 'global_score': -1 }")
+    List<Post> findByTagAndIdNotInSince(String tag, List<String> excludedIds, LocalDateTime since, Pageable pageable);
+
     @Query(value = "{ 'tags': { $in: ?0 }, '_id': { $nin: ?1 }, 'status': true }", sort = "{ 'global_score': -1 }")
     List<Post> findByTagsInAndIdNotIn(List<String> tags, List<String> excludedIds, Pageable pageable);
 
+    @Query(value = "{ 'tags': { $in: ?0 }, '_id': { $nin: ?1 }, 'status': true, 'created_datetime': { $gte: ?2 } }", sort = "{ 'global_score': -1 }")
+    List<Post> findByTagsInAndIdNotInSince(List<String> tags, List<String> excludedIds, LocalDateTime since, Pageable pageable);
+
     @Query(value = "{ '_id': { $nin: ?0 }, 'status': true }", sort = "{ 'global_score': -1 }")
     List<Post> findTopByGlobalScore(List<String> excludedIds, Pageable pageable);
+
+    @Query(value = "{ '_id': { $nin: ?0 }, 'status': true, 'created_datetime': { $gte: ?1 } }", sort = "{ 'global_score': -1 }")
+    List<Post> findTopByGlobalScoreSince(List<String> excludedIds, LocalDateTime since, Pageable pageable);
 
     @Aggregation(pipeline = {
             "{ '$match': { 'created_datetime': { '$gte': ?0, '$lte': ?1 } } }",

@@ -1,6 +1,6 @@
 package com.fsocial.postservice.controller;
 
-import com.fsocial.postservice.dto.Response;
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
@@ -14,7 +14,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -33,52 +32,49 @@ public class CommentController {
     CommentService commentService;
 
     @PostMapping
-    public ResponseEntity<Response> createComment(CommentDTORequest request) throws AppCheckedException {
+    public ApiResponse<Comment> createComment(CommentDTORequest request) throws AppCheckedException {
         Comment comment = commentService.addComment(request);
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<Comment>builder()
                 .data(comment)
                 .message("Comment created successfully")
-                .build());
+                .build();
     }
 
     @PostMapping("/like")
-    public ResponseEntity<Response> likeComment(@RequestBody @Valid LikeCommentDTO dto) throws AppCheckedException {
+    public ApiResponse<Map<String, Object>> likeComment(@RequestBody @Valid LikeCommentDTO dto) throws AppCheckedException {
         boolean like = commentService.toggleLikeComment(dto.getCommentId(), dto.getUserId());
         Map<String, Object> result = new HashMap<>();
         result.put("like", like);
         result.put("userid", dto.getUserId());
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<Map<String, Object>>builder()
                 .data(result)
                 .message(like ? "Thích bình luận thành công" : "Hủy thích bình luận thành công")
-                .build());
+                .build();
     }
 
     @PutMapping
-    public ResponseEntity<Response> updateComment(@RequestBody @Valid CommentUpdateDTORequest dto) throws AppCheckedException {
+    public ApiResponse<Comment> updateComment(@RequestBody @Valid CommentUpdateDTORequest dto) throws AppCheckedException {
         Comment update = commentService.updateComment(dto);
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<Comment>builder()
                 .message("Comment updated successfully")
                 .data(update)
-                .build());
+                .build();
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Response> deleteComment(@PathVariable("id") String id) {
-        return ResponseEntity.ok(Response.builder()
+    public ApiResponse<String> deleteComment(@PathVariable("id") String id) {
+        return ApiResponse.<String>builder()
                 .message("Comment deleted successfully")
                 .data(commentService.deleteComment(id))
-                .build());
-
+                .build();
     }
 
     @GetMapping()
-    public ResponseEntity<Response> getComment(@RequestParam("postId") String postId) {
+    public ApiResponse<List<CommentResponse>> getComment(@RequestParam("postId") String postId) {
         List<CommentResponse> commentByPostId = commentService.getComments(postId);
-        return ResponseEntity.ok(Response.builder()
-                .statusCode(StatusCode.GET_COMMENT_SUCCESS.getCode())
+        return ApiResponse.<List<CommentResponse>>builder()
                 .data(commentByPostId)
-                .dateTime(LocalDateTime.now())
                 .message("Comment get by postId successfully")
-                .build());
+                .build();
     }
 }

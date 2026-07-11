@@ -1,7 +1,7 @@
 package com.fsocial.postservice.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fsocial.postservice.dto.Response;
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.exception.StatusCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,7 +26,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-        Response apiResponse = Response.builder()
+        ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .statusCode(statusCode.getCode())
                 .message(statusCode.getMessage())
                 .build();

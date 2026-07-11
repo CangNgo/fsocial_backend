@@ -36,8 +36,8 @@ public class MongoIndexInitializer implements ApplicationRunner {
             IndexOperations ops = mongoTemplate.indexOps("seen_posts");
             ops.ensureIndex(new Index()
                     .on("seen_at", Sort.Direction.ASC)
-                    .expire(30, TimeUnit.DAYS));
-            log.debug("TTL index ensured on seen_posts.seen_at (30 days)");
+                    .expire(14, TimeUnit.DAYS));
+            log.debug("TTL index ensured on seen_posts.seen_at (14 days)");
         } catch (Exception e) {
             log.warn("Could not ensure TTL index on seen_posts: {}", e.getMessage());
         }

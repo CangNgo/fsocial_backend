@@ -22,7 +22,7 @@ public class CommentConsumer {
 
     CommentService commentService;
 
-    @RabbitListener(queues = "${rabbitmq.queue.post.comment.delete}")
+    @RabbitListener(queues = "#{@postCommentDeleteQueue.name}")
     public void receiveComment(String postId) throws AppCheckedException {
         commentService.deleteCommentByPostId(postId);
     }

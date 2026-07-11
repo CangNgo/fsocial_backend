@@ -1,10 +1,12 @@
 package com.fsocial.postservice.dto.notification;
 
-import java.util.Map;
+import com.fsocial.postservice.entity.ActorSnapshot;
+import com.fsocial.postservice.enums.NotificationType;
 
 public record NotificationDTO(
-        String token,
-        String title,
-        String body,
-        Map<String, String> data 
-) {}
+         String recipientId,
+
+         ActorSnapshot actor,
+
+         NotificationType type
+){}

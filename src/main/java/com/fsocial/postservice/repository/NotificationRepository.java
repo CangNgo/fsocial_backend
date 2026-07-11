@@ -1,5 +1,6 @@
 package com.fsocial.postservice.repository;
 
+import com.fsocial.postservice.dto.notification.NotificationResponse;
 import com.fsocial.postservice.entity.Notification;
 import com.fsocial.postservice.enums.NotificationType;
 import org.springframework.data.domain.Page;
@@ -8,7 +9,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,10 +27,12 @@ public interface NotificationRepository extends MongoRepository<Notification, St
 
     Page<Notification> findByRecipientIdAndTypeOrderByCreatedAtDesc(String recipientId, NotificationType type, Pageable pageable);
 
-    List<Notification> findByTypeAndPushedFalseAndExaminationTimeBetween(
-            NotificationType type, LocalDateTime from, LocalDateTime to);
-
     long countByRecipientIdAndIsReadFalse(String recipientId);
+
+    List<NotificationResponse> findByRecipientIdOrderByIdDesc(String recipientId, Pageable pageable);
+
+    List<NotificationResponse> findByRecipientIdAndIdLessThanOrderByIdDesc(
+            String recipientId, String id, Pageable pageable);
 
     Optional<Notification> findFirstByRecipientIdAndGroupKeyAndIsReadFalseAndCreatedAtAfter(
             String recipientId, String groupKey, Instant since);

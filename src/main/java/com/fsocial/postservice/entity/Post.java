@@ -50,6 +50,9 @@ public class Post extends AbstractEntity<String> {
     @Field("global_score")
     @Builder.Default
     double globalScore = 0.0;
+    @Field("raw_engagement")
+    @Builder.Default
+    double rawEngagement = 0.0;
     @Field("share_count")
     @Builder.Default
     int shareCount = 0;

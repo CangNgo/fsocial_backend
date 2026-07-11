@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -57,6 +58,7 @@ public class UploadMediaImpl implements UploadMedia {
         if (files == null || files.length == 0) {
             throw new AppCheckedException("No files provided", StatusCode.FILE_NOT_FOUND);
         }
+        validateAllBeforeUpload(files);
         String userId = currentUserId();
         MediaItem[] mediaItems = new MediaItem[files.length];
         int successCount = 0;
@@ -90,7 +92,9 @@ public class UploadMediaImpl implements UploadMedia {
             log.warn(PARTIAL_UPLOAD_FAILED_MESSAGE);
         }
 
-        return mediaItems;
+        return Arrays.stream(mediaItems)
+                .filter(Objects::nonNull)
+                .toArray(MediaItem[]::new);
     }
 
     @Override
@@ -178,6 +182,19 @@ public class UploadMediaImpl implements UploadMedia {
             return "video";
         }
         throw new AppCheckedException("Unsupported file type: " + extension, StatusCode.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    // Fail fast: chặn toàn bộ request trước khi upload file đầu tiên,
+    // tránh upload dở dang rồi mới phát hiện file sau vượt giới hạn/sai định dạng.
+    private void validateAllBeforeUpload(MultipartFile[] files) throws AppCheckedException {
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+            validateFileSize(file);
+            String extension = extractFileParts(file.getOriginalFilename())[1].toLowerCase(Locale.ROOT);
+            determineResourceType(extension);
+        }
     }
 
     private void validateFileSize(MultipartFile file) throws AppCheckedException {

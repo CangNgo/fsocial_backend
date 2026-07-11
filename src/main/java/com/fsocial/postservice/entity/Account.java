@@ -1,5 +1,6 @@
 package com.fsocial.postservice.entity;
 
+import com.fsocial.postservice.enums.AuthProvider;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.SuperBuilder;
@@ -32,6 +33,9 @@ public class Account extends AbstractEntity<String> {
     @Field("lastName")
     String lastName;
 
+    @Field("displayName")
+    String displayName;
+
     @Field("dob")
     LocalDate dob;
 
@@ -47,6 +51,9 @@ public class Account extends AbstractEntity<String> {
     @Field("bio")
     String bio;
 
+    @Field("address")
+    String address;
+
     boolean isKOL = false;
 
     @DBRef
@@ -58,4 +65,10 @@ public class Account extends AbstractEntity<String> {
     String email;
 
     boolean status = true;
+
+    @Field()
+    private AuthProvider provider;
+
+    @Field(name = "google_id")
+    private String googleId;
 }

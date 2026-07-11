@@ -40,22 +40,18 @@ public class AppConfig {
     CorsConfigurationSource corsConfigurationSource;
     ObjectMapper objectMapper;
 
+
     @NonFinal
     private final String[] PUBLIC_ENDPOINTS = {
             // Auth
-            "/auth/login", "/auth/refresh-token", "/auth/introspect",
-            // Register & forgot password flow
-            "/account/register", "/account/send-otp", "/account/verify-otp",
-            "/account/check-duplication", "/account/reset-password",
+            "/auth/**",
             // Internal service-to-service
             "/internal/**",
             // Swagger UI & API docs
             "/docs", "/docs/**",
             "/api-docs", "/api-docs/**",
             "/v3/api-docs", "/v3/api-docs/**",
-            "/swagger-ui.html", "/swagger-ui/**", "/webjars/**",
-//            demo public
-            "/notification/**"
+            "/swagger-ui.html", "/swagger-ui/**", "/webjars/**"
     };
 
     @Bean

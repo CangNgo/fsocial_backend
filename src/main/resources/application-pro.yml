@@ -2,6 +2,19 @@ app:
   services:
     profile: ${PROFILE_SERVICE_URL:http://profile-service:8085}
     notification: ${NOTIFICATION_SERVICE_URL:http://notification-service:8086}
+  defaults:
+    avatars:
+      - ${DEFAULT_AVATAR_1}
+      - ${DEFAULT_AVATAR_2}
+      - ${DEFAULT_AVATAR_3}
+      - ${DEFAULT_AVATAR_4}
+      - ${DEFAULT_AVATAR_5}
+    backgrounds:
+      - ${DEFAULT_BG_1}
+      - ${DEFAULT_BG_2}
+      - ${DEFAULT_BG_3}
+      - ${DEFAULT_BG_4}
+      - ${DEFAULT_BG_5}
   resend:
     key: ${RESEND_API_KEY}
     form: ${RESEND_FROM}
@@ -75,6 +88,10 @@ springdoc:
   default-produces-media-type: application/json
   packages-to-scan: com.fsocial.postservice.controller
 
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+  app-name: ${APP_NAME}
+
 jwt:
   signerKey: ${JWT_SIGNER_KEY}
   duration: 60
@@ -87,23 +104,6 @@ otp:
   expiration:
     send: 5
     verify: 600
-
-rabbitmq:
-  queue:
-    post:
-      comment:
-        delete: post.comment.delete.queue
-      attachments:
-        delete: post.attachments.delete.queue
-    score:
-      update: score.update.queue
-    interest:
-      update: interest.update.queue
-  exchange:
-    post:
-      delete: post.delete.exchange
-    interaction:
-      fanout: interaction.fanout.exchange
 
 logging:
   level:

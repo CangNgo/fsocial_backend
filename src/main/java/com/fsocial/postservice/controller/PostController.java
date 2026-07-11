@@ -1,7 +1,6 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
-import com.fsocial.postservice.dto.Response;
 import com.fsocial.postservice.dto.post.*;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.exception.AppCheckedException;
@@ -14,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -58,7 +56,7 @@ public class PostController {
     }
 
     @PutMapping
-    public ResponseEntity<Response> updatePost(
+    public ApiResponse<PostDTO> updatePost(
             @RequestParam("text") String text,
             @RequestParam("html") String html,
             @RequestParam("postId") String postId) throws AppCheckedException {
@@ -78,124 +76,137 @@ public class PostController {
         PostDTO post = postService.updatePost(postDTO, postId);
 
         //return result
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<PostDTO>builder()
                 .data(post)
                 .message("Cập nhật bài viết thành công")
-                .build());
+                .build();
     }
 
     @DeleteMapping
-    public ResponseEntity<Response> deletePost(
+    public ApiResponse<Void> deletePost(
             @RequestParam("postId") String postId) {
         postService.deletePost(postId);
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<Void>builder()
                 .message("Xóa bài viết thành công")
-                .build());
+                .build();
     }
 
     //Like Post
     @PostMapping("/like")
-    public ResponseEntity<Response> likePost(@RequestBody LikePostDTO likeDTO) throws Exception {
-        boolean like = postService.toggleLike(likeDTO.getPostId(), likeDTO.getUserId());
+    public ApiResponse<Map<String, Object>> likePost(@RequestBody LikePostDTO likeDTO,
+                                                     @AuthenticationPrincipal Jwt jwt) throws Exception {
+        String userId = jwt.getSubject();
+        boolean like = postService.toggleLike(likeDTO.getPostId(), userId);
 
         Map<String, Object> map = new HashMap<>();
         map.put("like", like);
-        map.put("userId", likeDTO.getUserId());
-        return ResponseEntity.ok(Response.builder()
+        map.put("userId", userId);
+        return ApiResponse.<Map<String, Object>>builder()
                 .data(map)
                 .message(like ? "Thích bài viết thành công" : "bỏ thích bài viết thành công")
-                .build());
+                .build();
     }
 
     @PostMapping("/share")
-    public ResponseEntity<Response> sharePost(@Valid PostShareDTORequest share) {
+    public ApiResponse<PostDTO> sharePost(@Valid PostShareDTORequest share,
+                                          @AuthenticationPrincipal Jwt jwt) {
+        share.setUserId(jwt.getSubject());
         PostDTO post = postService.sharePost(share);
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<PostDTO>builder()
                 .data(post)
                 .statusCode(StatusCode.OK.getCode())
                 .message("Chia sẽ bài viết thành công")
-                .build());
+                .build();
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Post>> getPostsByUser(@PathVariable String userId, @RequestParam String requesterId) {
+    public ApiResponse<List<Post>> getPostsByUser(@PathVariable String userId,
+                                                  @AuthenticationPrincipal Jwt jwt) {
+        String requesterId = jwt.getSubject();
         List<Post> posts = postService.getPostsByUser(userId, requesterId);
-        if (posts.isEmpty()) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.ok(posts);
+        return ApiResponse.<List<Post>>builder()
+                .data(posts)
+                .message("Lấy bài đăng thành công")
+                .build();
     }
 
     @GetMapping
-    public ResponseEntity<Response> getPosts(@RequestParam(value = "userId") String userId) throws AppCheckedException {
-        List<PostResponse> posts = postService.getPostsByUserId(userId);
+    public ApiResponse<List<PostResponse>> getPosts(@AuthenticationPrincipal Jwt jwt,
+                                                    @RequestParam(value = "size", defaultValue = "10") int size) throws AppCheckedException {
+        String userId = jwt.getSubject();
+        int feedSize = Math.min(50, Math.max(1, size));
+        List<PostResponse> posts = postService.getPostsByUserId(userId, feedSize);
         log.info("Lấy thông tin bài viết thành công");
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<List<PostResponse>>builder()
                 .message("Lấy bài đăng thành công")
                 .dateTime(LocalDateTime.now())
                 .data(posts)
-                .build());
+                .build();
     }
 
     @GetMapping("/following")
-    public ResponseEntity<Response> getPostsByFollowing(@RequestParam(value = "userId") String userId) throws AppCheckedException {
+    public ApiResponse<List<PostResponse>> getPostsByFollowing(@AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+        String userId = jwt.getSubject();
         List<PostResponse> posts = postService.getPostByFollowing(userId);
         log.info("Lấy thông tin bài viết theo following thành công");
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<List<PostResponse>>builder()
                 .message("Lấy bài đăng theo following thành công")
                 .dateTime(LocalDateTime.now())
                 .data(posts)
-                .build());
+                .build();
     }
 
     @GetMapping("/find")
-    public ResponseEntity<Response> findPost(@RequestParam("find_post") String findString,
-                                             @RequestParam("user_id") String userId) throws AppCheckedException {
+    public ApiResponse<List<PostResponse>> findPost(@RequestParam("find_post") String findString,
+                                                    @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+        String userId = jwt.getSubject();
         List<PostResponse> findByText = postService.findByText(findString, userId);
         log.info("Tìm kiếm bài đăng theo text thành công");
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<List<PostResponse>>builder()
                 .message("Lấy bài đăng thành công")
                 .dateTime(LocalDateTime.now())
                 .data(findByText)
-                .build());
+                .build();
     }
 
     @GetMapping("/getpost_id")
-    public ResponseEntity<Response> getPostId(@RequestParam("post_id") String postId, @RequestParam("user_id") String userId) throws AppCheckedException {
+    public ApiResponse<PostResponse> getPostId(@RequestParam("post_id") String postId,
+                                               @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+        String userId = jwt.getSubject();
         PostResponse result = postService.getPostById(postId, userId);
         log.info("Tìm kiếm bài đăng theo id thành công");
-        return ResponseEntity.ok(Response.builder()
+        return ApiResponse.<PostResponse>builder()
                 .message("Lấy bài đăng thành công")
                 .dateTime(LocalDateTime.now())
                 .data(result)
-                .build());
+                .build();
     }
 
     //thống kê số lượng bài viết
     @GetMapping("/statistics_post_today")
-    public ResponseEntity<Response> getPosttStatistics(@RequestParam("date_time") String dateTime) {
+    public ApiResponse<List<PostStatisticsDTO>> getPosttStatistics(@RequestParam("date_time") String dateTime) {
         LocalDate date = LocalDate.parse(dateTime);
         LocalDateTime startDate = date.atStartOfDay();
         LocalDateTime endDate = date.atTime(23, 59, 59);
         List<PostStatisticsDTO> result = postService.countStatisticsPostToday(startDate, endDate);
         log.info("Lấy thông tin thống kê theo {} thành công", date);
-        return ResponseEntity.ok().body(Response.builder()
+        return ApiResponse.<List<PostStatisticsDTO>>builder()
                 .data(result)
                 .message("Lấy toàn bộ danh sách thống kê số lượng bài viết trong ngày " + date + "  thành công")
-                .build());
+                .build();
     }
 
     @GetMapping("/statistics_post_start_end")
-    public ResponseEntity<Response> getPostStatistics(@RequestParam("startDate") String startDateRe, @RequestParam("endDate") String endDateRe) {
+    public ApiResponse<List<PostStatisticsLongDateDTO>> getPostStatistics(@RequestParam("startDate") String startDateRe, @RequestParam("endDate") String endDateRe) {
         LocalDate start = LocalDate.parse(startDateRe);
         LocalDate end = LocalDate.parse(endDateRe);
         LocalDateTime startDate = start.atStartOfDay();
         LocalDateTime endDate = end.atTime(23, 59, 59);
 
-        return ResponseEntity.ok().body(Response.builder()
+        return ApiResponse.<List<PostStatisticsLongDateDTO>>builder()
                 .data(postService.countStatisticsPostLongDay(startDate, endDate))
                 .message("Lấy toàn bộ danh sách thống kê số lượng bài viết từ ngày " + startDate + " đến " + endDate + "  thành công")
-                .build());
+                .build();
     }
 
 }

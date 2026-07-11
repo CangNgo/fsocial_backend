@@ -3,12 +3,13 @@ package com.fsocial.postservice.services.impl;
 import com.fsocial.postservice.dto.post.PostResponse;
 import com.fsocial.postservice.entity.*;
 import com.fsocial.postservice.repository.*;
-import com.fsocial.postservice.services.*;
+import com.fsocial.postservice.services.FeedService;
+import com.fsocial.postservice.services.InterestGraphService;
+import com.fsocial.postservice.services.ScoringService;
 import com.fsocial.postservice.util.DisplayNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -17,8 +18,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.fsocial.postservice.util.PostUtils.buildContentResponse;
+import static com.fsocial.postservice.util.PostUtils.buildPostResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +36,7 @@ public class FeedServiceImpl implements FeedService {
 
     private static final int MAX_CANDIDATE_POOL_PER_TAG = 100;
     private static final int MAX_RELATED_TAGS = 5;
+    private static final int CANDIDATE_MAX_AGE_DAYS = 7;
 
     private final PostRepository postRepository;
     private final SeenPostRepository seenPostRepository;
@@ -64,21 +70,21 @@ public class FeedServiceImpl implements FeedService {
                     List.of(), PageRequest.of(0, feedSize));
         }
 
-        // Enrich with social context and sort by final_score
+        // Enrich with social context and sort by final_score (score computed once per post)
         Set<String> followingIds = getFollowingIds(userId);
         Map<String, Integer> commentCountMap = buildCommentCountMap(candidates);
 
-        candidates.sort((p1, p2) -> {
-            double s1 = scoringService.calculateFinalScore(p1,
-                    commentCountMap.getOrDefault(p1.getId(), 0),
-                    normalizedWeights,
-                    followingIds.contains(p1.getOwner().getUserId()));
-            double s2 = scoringService.calculateFinalScore(p2,
-                    commentCountMap.getOrDefault(p2.getId(), 0),
-                    normalizedWeights,
-                    followingIds.contains(p2.getOwner().getUserId()));
-            return Double.compare(s2, s1);
-        });
+        record Scored(Post post, double score) {}
+        List<Post> sorted = candidates.stream()
+                .map(p -> new Scored(p, scoringService.calculateFinalScore(
+                        p,
+                        commentCountMap.getOrDefault(p.getId(), 0),
+                        normalizedWeights,
+                        followingIds.contains(p.getOwner().getUserId()))))
+                .sorted(Comparator.comparingDouble(Scored::score).reversed())
+                .map(Scored::post)
+                .collect(Collectors.toList());
+        candidates = sorted;
 
         // Mark posts as seen
         candidates.forEach(p -> markSeen(userId, p.getId()));
@@ -87,7 +93,7 @@ public class FeedServiceImpl implements FeedService {
     }
 
     private List<Post> buildCandidatePool(String userId, Map<String, Double> normalizedWeights,
-                                           List<String> seenIds, int feedSize) {
+                                          List<String> seenIds, int feedSize) {
         int exploitSize = (int) Math.round(feedSize * EXPLOIT_RATIO);
         int exploreSize = (int) Math.round(feedSize * EXPLORE_RATIO);
         int wildcardSize = feedSize - exploitSize - exploreSize;
@@ -115,16 +121,22 @@ public class FeedServiceImpl implements FeedService {
      * Exploit (70%): Budget allocation per tag, weighted sampling within each pool.
      */
     private List<Post> getExploitPosts(Map<String, Double> normalizedWeights,
-                                        List<String> seenIds, int totalSlots) {
+                                       List<String> seenIds, int totalSlots) {
         List<Post> result = new ArrayList<>();
         List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
+        LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
 
         for (Map.Entry<String, Double> entry : normalizedWeights.entrySet()) {
             int slots = Math.max(1, (int) Math.round(entry.getValue() * totalSlots));
             int poolSize = Math.min(MAX_CANDIDATE_POOL_PER_TAG, slots * 5);
 
-            List<Post> pool = postRepository.findByTagAndIdNotIn(
-                    entry.getKey(), exclusions, PageRequest.of(0, poolSize));
+            List<Post> pool = postRepository.findByTagAndIdNotInSince(
+                    entry.getKey(), exclusions, since, PageRequest.of(0, poolSize));
+            if (pool.isEmpty()) {
+                // fallback: no date constraint
+                pool = postRepository.findByTagAndIdNotIn(
+                        entry.getKey(), exclusions, PageRequest.of(0, poolSize));
+            }
 
             List<Post> sampled = weightedSample(pool, slots);
             result.addAll(sampled);
@@ -141,7 +153,7 @@ public class FeedServiceImpl implements FeedService {
      * Explore (20%): Use tag co-occurrence to find related tags user hasn't explicitly expressed.
      */
     private List<Post> getExplorePosts(Map<String, Double> normalizedWeights,
-                                        List<String> seenIds, int totalSlots) {
+                                       List<String> seenIds, int totalSlots) {
         List<String> knownTags = new ArrayList<>(normalizedWeights.keySet());
         Set<String> relatedTags = new LinkedHashSet<>();
 
@@ -154,32 +166,65 @@ public class FeedServiceImpl implements FeedService {
             if (relatedTags.size() >= MAX_RELATED_TAGS * 2) break;
         }
 
+        List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
+        LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
+
         if (relatedTags.isEmpty()) {
             // No co-occurrence data yet — fallback: use posts from tags user hasn't seen much
-            return postRepository.findByTagsInAndIdNotIn(knownTags, seenIds, PageRequest.of(0, totalSlots));
+            List<Post> recent = postRepository.findByTagsInAndIdNotInSince(knownTags, exclusions, since, PageRequest.of(0, totalSlots));
+            if (recent.isEmpty()) recent = postRepository.findByTagsInAndIdNotIn(knownTags, exclusions, PageRequest.of(0, totalSlots));
+            return recent;
         }
 
-        List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
-        return postRepository.findByTagsInAndIdNotIn(
-                new ArrayList<>(relatedTags), exclusions, PageRequest.of(0, totalSlots));
+        List<Post> recent = postRepository.findByTagsInAndIdNotInSince(
+                new ArrayList<>(relatedTags), exclusions, since, PageRequest.of(0, totalSlots));
+        if (recent.isEmpty()) {
+            recent = postRepository.findByTagsInAndIdNotIn(
+                    new ArrayList<>(relatedTags), exclusions, PageRequest.of(0, totalSlots));
+        }
+        return recent;
     }
 
     /**
-     * Wildcard (10%): Top globally-scored posts the user hasn't seen.
+     * Wildcard (10%): Top globally-scored posts the user hasn't seen (within 7 days, fallback unbounded).
      */
     private List<Post> getWildcardPosts(List<String> seenIds, int totalSlots) {
         List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
-        return postRepository.findTopByGlobalScore(exclusions, PageRequest.of(0, totalSlots));
+        LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
+        List<Post> recent = postRepository.findTopByGlobalScoreSince(exclusions, since, PageRequest.of(0, totalSlots));
+        if (recent.isEmpty()) recent = postRepository.findTopByGlobalScore(exclusions, PageRequest.of(0, totalSlots));
+        return recent;
     }
 
     /**
-     * Weighted random sampling without replacement from a candidate pool.
-     * All posts in pool have equal probability (globalScore already used for ordering by DB).
+     * Weighted sampling without replacement — probability proportional to globalScore.
+     * Posts with score 0 still get minimum weight 0.1 so they aren't excluded.
      */
     private List<Post> weightedSample(List<Post> pool, int count) {
         if (pool.size() <= count) return new ArrayList<>(pool);
-        Collections.shuffle(pool);
-        return new ArrayList<>(pool.subList(0, count));
+
+        List<Post> remaining = new ArrayList<>(pool);
+        List<Post> result = new ArrayList<>(count);
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+
+        while (result.size() < count && !remaining.isEmpty()) {
+            double[] weights = remaining.stream()
+                    .mapToDouble(p -> Math.max(p.getGlobalScore(), 0.1))
+                    .toArray();
+            double total = Arrays.stream(weights).sum();
+            double pick = rng.nextDouble(total);
+            double cumulative = 0;
+            int chosen = remaining.size() - 1;
+            for (int i = 0; i < weights.length; i++) {
+                cumulative += weights[i];
+                if (pick < cumulative) {
+                    chosen = i;
+                    break;
+                }
+            }
+            result.add(remaining.remove(chosen));
+        }
+        return result;
     }
 
     @Override
@@ -238,23 +283,10 @@ public class FeedServiceImpl implements FeedService {
                         log.warn("Owner not found for post {}", post.getId());
                         return null;
                     }
-                    return PostResponse.builder()
-                            .id(post.getId())
-                            .originPostId(post.getOriginPostId())
-                            .content(post.getContent())
-                            .countLikes(post.getLikes() == null ? 0 : post.getLikes().size())
-                            .countComments(commentCountMap.getOrDefault(post.getId(), 0))
-                            .userId(post.getOwner().getUserId())
-                            .displayName(DisplayNameUtils.build(owner))
-                            .avatar(owner.getAvatar())
-                            .createDatetime(post.getCreateDatetime())
-                            .isLike(post.getLikes() != null && post.getLikes().contains(requesterId))
-                            .isShare(Boolean.TRUE.equals(post.getIsShare()))
-                            .status(Boolean.TRUE.equals(post.getStatus()))
-                            .tags(post.getTags())
-                            .build();
+                    return buildPostResponse(post, owner, commentCountMap.getOrDefault(post.getId(), 0), requesterId);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
+
 }

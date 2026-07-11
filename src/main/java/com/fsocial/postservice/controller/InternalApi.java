@@ -1,5 +1,6 @@
 package com.fsocial.postservice.controller;
 
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.UploadMedia;
@@ -25,14 +26,20 @@ public class InternalApi {
     UploadMedia uploadImage;
 
     @PostMapping("/upload-file")
-    public MediaItem uploadFile(@RequestParam("fileUpload") MultipartFile file) throws AppCheckedException {
+    public ApiResponse<MediaItem> uploadFile(@RequestParam("fileUpload") MultipartFile file) throws AppCheckedException {
         MediaItem[] items = uploadImage.uploadMedia(new MultipartFile[]{file});
-        return items[0];
+        return ApiResponse.<MediaItem>builder()
+                .data(items[0])
+                .message("Upload file success")
+                .build();
     }
 
     @PostMapping("/upload-files")
-    public List<MediaItem> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
+    public ApiResponse<List<MediaItem>> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
         MediaItem[] items = uploadImage.uploadMedia(file);
-        return Arrays.asList(items);
+        return ApiResponse.<List<MediaItem>>builder()
+                .data(Arrays.asList(items))
+                .message("Upload file success")
+                .build();
     }
 }

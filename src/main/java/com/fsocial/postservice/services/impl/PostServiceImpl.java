@@ -2,13 +2,16 @@ package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.dto.Account.OwnerDTO;
 import com.fsocial.postservice.dto.ContentDTO;
+import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.dto.post.*;
 import com.fsocial.postservice.entity.*;
+import com.fsocial.postservice.enums.NotificationType;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.ContentMapper;
 import com.fsocial.postservice.mapper.PostMapper;
 import com.fsocial.postservice.publisher.InteractionEventPublisher;
+import com.fsocial.postservice.publisher.NotificationEvent;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.repository.CommentRepository;
 import com.fsocial.postservice.repository.PostRepository;
@@ -38,6 +41,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.fsocial.postservice.util.PostUtils.buildPostResponse;
+
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -55,6 +60,7 @@ public class PostServiceImpl implements PostService {
     AccountService accountService;
     FeedService feedService;
     InteractionEventPublisher interactionEventPublisher;
+    NotificationEvent notificationEvent;
 
     @Override
     @Transactional
@@ -103,6 +109,7 @@ public class PostServiceImpl implements PostService {
                 Post post = postRepository.findById(postId).orElseThrow();
                 // Publish async score + interest update
                 interactionEventPublisher.publish(postId, userId, "LIKE", post.getTags());
+                notifyOwner(post.getOwner().getUserId(), userId, NotificationType.LIKE_SINGLE);
                 return true;
             } else {
                 this.removeLike(postId, userId);
@@ -161,7 +168,25 @@ public class PostServiceImpl implements PostService {
         interactionEventPublisher.publish(postRequest.getOriginPostId(),
                 postRequest.getUserId(), "SHARE", inheritedTags);
 
+        postRepository.findById(postRequest.getOriginPostId()).ifPresent(origin ->
+                notifyOwner(origin.getOwner().getUserId(), postRequest.getUserId(), NotificationType.SHARE));
+
         return postMapper.toPostDTO(saved);
+    }
+
+    /** Bỏ qua nếu tự thao tác trên bài viết của chính mình */
+    private void notifyOwner(String ownerId, String actorId, NotificationType type) {
+        if (ownerId == null || ownerId.equals(actorId)) return;
+        OwnerDTO actor = accountService.getOwner(actorId);
+        notificationEvent.publishCreateNotification(new NotificationDTO(
+                ownerId,
+                ActorSnapshot.builder()
+                        .userId(actor.getId())
+                        .displayName(DisplayNameUtils.build(actor.getLastName(), actor.getFirstName()))
+                        .avatarUrl(actor.getAvatar())
+                        .build(),
+                type
+        ));
     }
 
     private ContentDTO buildContent(String html, String text, MediaItem[] media) {
@@ -215,7 +240,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<PostResponse> getPostsByUserId(String userId) {
-        List<PostResponse> feed = feedService.buildPersonalizedFeed(userId, 10);
+        return getPostsByUserId(userId, 10);
+    }
+
+    @Override
+    public List<PostResponse> getPostsByUserId(String userId, int feedSize) {
+        List<PostResponse> feed = feedService.buildPersonalizedFeed(userId, feedSize);
         log.info("Lấy bài viết thành công, count={}", feed.size());
         return feed;
     }
@@ -317,27 +347,11 @@ public class PostServiceImpl implements PostService {
                         return null;
                     }
                     return buildPostResponse(post, owner,
-                            commentCountMap.getOrDefault(post.getId(), 0), requesterId);
+                            commentCountMap.get(post.getId()), requesterId);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
-    private PostResponse buildPostResponse(Post post, Account owner, int commentCount, String requesterId) {
-        return PostResponse.builder()
-                .id(post.getId())
-                .originPostId(post.getOriginPostId())
-                .content(post.getContent())
-                .countLikes(post.getLikes() == null ? 0 : post.getLikes().size())
-                .countComments(commentCount)
-                .userId(post.getOwner().getUserId())
-                .displayName(DisplayNameUtils.build(owner))
-                .avatar(owner.getAvatar())
-                .createDatetime(post.getCreateDatetime())
-                .isLike(post.getLikes() != null && post.getLikes().contains(requesterId))
-                .isShare(Boolean.TRUE.equals(post.getIsShare()))
-                .status(Boolean.TRUE.equals(post.getStatus()))
-                .tags(post.getTags())
-                .build();
-    }
+
 }

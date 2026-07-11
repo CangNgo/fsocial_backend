@@ -1,13 +1,12 @@
 package com.fsocial.postservice.controller;
 
-import com.fsocial.postservice.dto.Response;
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.termOfService.TermOfServiceDTO;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.TermOfServicesService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,41 +20,41 @@ public class TermOfServiceController {
     TermOfServicesService termOfServicesService;
 
     @PostMapping
-    public ResponseEntity<Response> addTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) {
+    public ApiResponse<TermOfServiceDTO> addTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) {
         TermOfServiceDTO termOfService = termOfServicesService.addTermOfService(termOfServiceDTO);
-        return ResponseEntity.ok().body(Response.builder()
-                        .message("Thêm chính sách mới thành công")
-                        .data(termOfService)
-                .build());
+        return ApiResponse.<TermOfServiceDTO>builder()
+                .message("Thêm chính sách mới thành công")
+                .data(termOfService)
+                .build();
     }
 
     @PutMapping
-    public ResponseEntity<Response> updateTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) throws AppCheckedException {
+    public ApiResponse<TermOfServiceDTO> updateTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) throws AppCheckedException {
         TermOfServiceDTO termOfService = termOfServicesService.updateTermOfService(termOfServiceDTO);
-        return ResponseEntity.ok().body(Response.builder()
-                .message("Cập nhật chính sách mới thành công")
+        return ApiResponse.<TermOfServiceDTO>builder()
+                .message("Cập nhật chính sách thành công")
                 .data(termOfService)
-                .build());
+                .build();
     }
 
     @DeleteMapping
-    public ResponseEntity<Response> deleteTermOfSerivce(@RequestParam("term_id") String termId) throws AppCheckedException {
+    public ApiResponse<String> deleteTermOfSerivce(@RequestParam("term_id") String termId) throws AppCheckedException {
 
-        return ResponseEntity.ok().body(Response.builder()
-                .message("Cập nhật chính sách mới thành công")
+        return ApiResponse.<String>builder()
+                .message("Xóa chính sách thành công")
                 .data(termOfServicesService.deleteTermOfService(termId))
-                .build());
+                .build();
     }
 
 
     @GetMapping
-    public ResponseEntity<Response> getTermOfService() {
+    public ApiResponse<List<TermOfServiceDTO>> getTermOfService() {
 
         List<TermOfServiceDTO> res =termOfServicesService.getTermOfServices();
 
-        return ResponseEntity.ok().body(Response.builder()
+        return ApiResponse.<List<TermOfServiceDTO>>builder()
                 .data(res)
                 .message("Lấy toàn bộ danh sách chính sách thành công")
-                .build());
+                .build();
     }
 }

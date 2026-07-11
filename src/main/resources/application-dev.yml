@@ -2,6 +2,17 @@ app:
   services:
     profile: ${PROFILE_SERVICE_URL:http://localhost:8085}
     notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8086}
+  defaults:
+    avatars:
+      - ${DEFAULT_AVATAR_1}
+      - ${DEFAULT_AVATAR_2}
+      - ${DEFAULT_AVATAR_3}
+      - ${DEFAULT_AVATAR_4}
+    backgrounds:
+      - ${DEFAULT_BG_1}
+      - ${DEFAULT_BG_2}
+      - ${DEFAULT_BG_3}
+      - ${DEFAULT_BG_4}
   resend:
     key: ${RESEND_API_KEY}
     form: ${RESEND_FROM:no-reply@fsocial.online}
@@ -12,7 +23,7 @@ app:
 
 server:
   servlet:
-    context-path: /api/v1/post
+    context-path: /api/v1
     session:
       timeout: 30m
   port: ${SERVER_PORT:8080}
@@ -42,13 +53,13 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      username: ${REDIS_USERNAME:}
-      password: ${REDIS_PASSWORD:}
+      username: ${REDIS_USERNAME}
+      password: ${REDIS_PASSWORD}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
   rabbitmq:
     host: ${RABBITMQ_HOST}
-    port: ${RABBITMQ_PORT:5671}
+    port: ${RABBITMQ_PORT}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VHOST}
@@ -59,6 +70,7 @@ spring:
       ddl-auto: validate
 google:
   client-id: ${GOOGLE_CLIENT_ID}
+  app-name: ${APP_NAME}
 springdoc:
   api-docs:
     path: /api-docs
@@ -87,23 +99,6 @@ otp:
   expiration:
     send: 5
     verify: 600
-
-rabbitmq:
-  queue:
-    post:
-      comment:
-        delete: post.comment.delete.queue
-      attachments:
-        delete: post.attachments.delete.queue
-    score:
-      update: score.update.queue
-    interest:
-      update: interest.update.queue
-  exchange:
-    post:
-      delete: post.delete.exchange
-    interaction:
-      fanout: interaction.fanout.exchange
 
 logging:
   level:

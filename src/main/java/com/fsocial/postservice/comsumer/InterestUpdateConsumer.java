@@ -24,7 +24,7 @@ public class InterestUpdateConsumer {
 
     private final InterestGraphService interestGraphService;
 
-    @RabbitListener(queues = "${rabbitmq.queue.interest.update}")
+    @RabbitListener(queues = "#{@interestUpdateQueue.name}")
     public void handleInteractionEvent(InteractionEvent event) {
         if (event == null || event.getUserId() == null) return;
 
@@ -42,11 +42,12 @@ public class InterestUpdateConsumer {
     private double resolveDelta(String actionType) {
         if (actionType == null) return 0;
         return switch (actionType) {
-            case "LIKE"    -> 2.0;
-            case "UNLIKE"  -> -2.0;
-            case "COMMENT" -> 3.0;
-            case "SHARE"   -> 5.0;
-            default        -> 0.0;
+            case "LIKE"           -> 2.0;
+            case "UNLIKE"         -> -2.0;
+            case "COMMENT"        -> 3.0;
+            case "COMMENT_DELETE" -> -3.0;
+            case "SHARE"          -> 5.0;
+            default               -> 0.0;
         };
     }
 }

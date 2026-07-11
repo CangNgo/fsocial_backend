@@ -18,6 +18,8 @@ public interface PostService {
     // Methods from timelineService
     List<PostResponse> getPostsByUserId(String userId) throws AppCheckedException;
 
+    List<PostResponse> getPostsByUserId(String userId, int feedSize) throws AppCheckedException;
+
 //    com.fsocial.postservice.dto.profile.ProfileResponse getProfile(String id) throws AppCheckedException;
 
     List<PostResponse> findByText(String text, String userId) throws AppCheckedException;

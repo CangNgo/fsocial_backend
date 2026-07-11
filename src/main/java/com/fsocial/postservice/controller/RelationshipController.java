@@ -21,30 +21,36 @@ public class RelationshipController {
     @PostMapping("/follow")
     public ApiResponse<Void> follow(@RequestBody @Valid FollowRequest request) {
         relationshipService.follow(request.getUserId(), request.getTargetId());
-        return  buildApiResponse(null);
+        return ApiResponse.<Void>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .build();
     }
 
     @PostMapping("/unfollow")
     public ApiResponse<Void> unfollow(@RequestBody @Valid FollowRequest request) {
         relationshipService.unfollow(request.getUserId(), request.getTargetId());
-        return buildApiResponse(null);
+        return ApiResponse.<Void>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .build();
     }
 
     @GetMapping("/followers/{userId}")
     public ApiResponse<Set<String>> getFollowers(@PathVariable String userId) {
-        return buildApiResponse(relationshipService.getFollowers(userId));
+        return ApiResponse.<Set<String>>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .data(relationshipService.getFollowers(userId))
+                .build();
     }
 
     @GetMapping("/followings/{userId}")
     public ApiResponse<Set<String>> getFollowings(@PathVariable String userId) {
-        return buildApiResponse(relationshipService.getFollowing(userId));
-    }
-
-    private <T> ApiResponse<T> buildApiResponse(T data) {
-        return ApiResponse.<T>builder()
+        return ApiResponse.<Set<String>>builder()
                 .statusCode(ResponseStatus.SUCCESS.getCODE())
                 .message(ResponseStatus.SUCCESS.getMessage())
-                .data(data)
+                .data(relationshipService.getFollowing(userId))
                 .build();
     }
 }

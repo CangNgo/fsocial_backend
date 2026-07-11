@@ -1,6 +1,7 @@
 package com.fsocial.postservice.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fsocial.postservice.enums.AuthProvider;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -42,4 +43,8 @@ public class AccountRegisterRequest {
     LocalDate dob;
 
     int gender;
+
+    private AuthProvider provider;
+
+    private String googleId;
 }

@@ -1,10 +1,19 @@
 package com.fsocial.postservice.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum NotificationType {
-    LIKE("LIKE"), COMMENT("COMMENT"), REPLY("REPLY"), FOLLOW("FOLLOW"), MENTION("MENTION"),
-    MESSAGE("MESSAGE"), SYSTEM("SYSTEM"), APPOINTMENT("APPOINTMENT"), RESULT("RESULT"), PAYMENT("PAYMENT");
-    final String name;
-    NotificationType(String name) {
-        this.name = name;
-    }
+    LIKE_SINGLE,
+    LIKE_MULTI,
+    COMMENT_SINGLE,
+    COMMENT_MULTI,
+    COMMENT_REPLY,
+    SHARE,
+    FOLLOW,
+    MENTION,
+    MESSAGE,
+    SYSTEM,
+    LOGIN,
+    LOGIN_NEW_DEVICE
 }

@@ -19,7 +19,6 @@ public enum StatusCode {
     UPLOAD_FILE_FAILED(204, "Upload file failed"),
     CREATE_COMMENT_SUCCESS(205, "Create comment success"),
     CREATE_COMMENT_FAILED(206, "Create comment failed"),
-    GET_COMMENT_SUCCESS(207, "Get comment success"),
     USER_NOT_FOUND(208, "Client not found"),
     POST_NOT_FOUND(209  , "Post not found"),
     ENPOINTMENT_NOT_FOUND(210, "Enpointment Not Found"),
@@ -39,7 +38,11 @@ public enum StatusCode {
     UPLOAD_AVATAR_FAIL(500, "Upload avatar fail"),
     NOT_FOUND(404, "NOT FOUND"),
     FEED_EMPTY(214, "Feed is empty"),
-    INTEREST_NOT_FOUND(215, "User interest data not found")
+    INTEREST_NOT_FOUND(215, "User interest data not found"),
+    IOEXCEPTION(403, "IOException"),
+    EMAIL_IS_NOT_VERIFY(304, "Email mail is not verify"),
+    INVALID_GOOGLE_TOKEN(403, "Invalid or expired Google token"),
+    ROLE_NOT_FOUND(404, "Role not found"),
     ;
     private final int code;
     private final String message;

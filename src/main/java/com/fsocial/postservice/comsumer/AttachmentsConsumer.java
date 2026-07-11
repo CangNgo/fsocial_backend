@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AttachmentsConsumer {
 
-    @RabbitListener(queues = "${rabbitmq.queue.post.attachments.delete}")
+    @RabbitListener(queues = "#{@postCommentAttachmentsQueue.name}")
     public void receiveAttachments(String postId){
 
         log.info("Received attachment for post with id: " + postId);

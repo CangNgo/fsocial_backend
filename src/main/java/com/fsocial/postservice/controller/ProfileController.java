@@ -42,29 +42,27 @@ public class ProfileController {
 
         return ApiResponse.<AccountResponse>builder()
                 .data(accountService.getProfile(userId))
-                .message("Ban tài khoản thành công")
+                .message("Lấy thông tin tài khoản thành công")
                 .build();
     }
 
     @PutMapping("/update-avatar")
     public ApiResponse<ProfileResponse> updateAvatar(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal Jwt jwt) {
-        ApiResponse<ProfileResponse> apiResponse = new ApiResponse<>();
         String userId = jwt.getSubject();
 
-        //update avatar
-        apiResponse.setData(profileService.updateAvatar(file, userId));
-        apiResponse.setMessage("Cập nhật ảnh đại diện thành công");
-        return apiResponse;
+        return ApiResponse.<ProfileResponse>builder()
+                .data(profileService.updateAvatar(file, userId))
+                .message("Cập nhật ảnh đại diện thành công")
+                .build();
     }
 
     @PutMapping("/update-background")
     public ApiResponse<ProfileResponse> updateBackground(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal Jwt jwt) {
-        ApiResponse<ProfileResponse> apiResponse = new ApiResponse<>();
         String userId = jwt.getSubject();
 
-        //update background
-        apiResponse.setData(profileService.updateBackground(file, userId));
-        apiResponse.setMessage("Cập nhật ảnh nền thành công");
-        return apiResponse;
+        return ApiResponse.<ProfileResponse>builder()
+                .data(profileService.updateBackground(file, userId))
+                .message("Cập nhật ảnh nền thành công")
+                .build();
     }
 }

@@ -1,13 +1,24 @@
 package com.fsocial.postservice.dto.notification;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fsocial.postservice.entity.ActorSnapshot;
+import com.fsocial.postservice.entity.EntityRef;
+import com.fsocial.postservice.enums.NotificationType;
 import com.fsocial.postservice.enums.PaymentStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -16,17 +27,14 @@ import java.time.LocalDateTime;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class NotificationResponse {
-    String id;
-    String title;
-    String message;
-    String deeplink;
-    String[] email;
-    @NotBlank
-    String ownerId;
-    boolean isRead;
-    String type;
-    String receiverId;
-    LocalDateTime examinationTime;
-    PaymentStatus paymentStatus;
-    Instant createdAt;
+    private String id;
+    private String recipientId;
+    private ActorSnapshot actor;
+    private NotificationType type;
+    private String groupKey;
+    private List<ActorSnapshot> aggregatedActors = new ArrayList<>();
+    private String title;
+    private String body;
+    private boolean isRead;
+    private Instant createdAt;
 }

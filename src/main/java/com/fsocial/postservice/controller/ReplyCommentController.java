@@ -1,6 +1,6 @@
 package com.fsocial.postservice.controller;
 
-import com.fsocial.postservice.dto.Response;
+import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -31,54 +30,54 @@ public class ReplyCommentController {
     ReplyCommentService replyCommentService;
 
     @GetMapping("/like")
-    public ResponseEntity<Response> likeReplyComment(@RequestBody @Valid LikeReplyCommentDTO request) throws AppCheckedException {
+    public ApiResponse<Map<String, Boolean>> likeReplyComment(@RequestBody @Valid LikeReplyCommentDTO request) throws AppCheckedException {
         boolean like = replyCommentService.likeReplyComment(request);
         Map<String, Boolean> map = new HashMap<>();
         map.put("like", like);
-        return ResponseEntity.ok().body(Response.builder()
+        return ApiResponse.<Map<String, Boolean>>builder()
                 .data(map)
                 .dateTime(LocalDateTime.now())
                 .message(like?"Like thành công":"Bỏ like thành công")
-                .build());
+                .build();
     }
 
     @PostMapping
-    public ResponseEntity<Response> replyComment(ReplyCommentRequest request) throws AppCheckedException, IOException {
+    public ApiResponse<ReplyComment> replyComment(ReplyCommentRequest request) throws AppCheckedException, IOException {
 
         ReplyComment response = replyCommentService.addReplyComment(request);
 
-        return ResponseEntity.ok().body(Response.builder()
-                        .data(response)
-                        .dateTime(LocalDateTime.now())
-                        .message("Reply comment thành công")
-                .build());
+        return ApiResponse.<ReplyComment>builder()
+                .data(response)
+                .dateTime(LocalDateTime.now())
+                .message("Reply comment thành công")
+                .build();
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Response> deleteReplyComment(@PathVariable("id") String id) throws AppCheckedException {
-        return ResponseEntity.ok().body(Response.builder()
+    public ApiResponse<String> deleteReplyComment(@PathVariable("id") String id) throws AppCheckedException {
+        return ApiResponse.<String>builder()
                 .data(replyCommentService.deleteReplyComment(id))
                 .message("Delete reply comment successfully")
-                .build());
+                .build();
     }
 
     @PutMapping
-    public ResponseEntity<Response> updateReplyComment(ReplyCommentUpdateDTORequest request) throws AppCheckedException {
+    public ApiResponse<ReplyComment> updateReplyComment(ReplyCommentUpdateDTORequest request) throws AppCheckedException {
         ReplyComment update = replyCommentService.updateReplyComment(request);
-        return ResponseEntity.ok().body(Response.builder()
+        return ApiResponse.<ReplyComment>builder()
                 .data(update)
                 .message("Update reply comment successfully")
-                .build());
+                .build();
     }
 
     // API from timelineService
     @GetMapping()
-    public ResponseEntity<Response> getReplyCommentByCommentId(@RequestParam("comment_id") String commentId) {
-        return ResponseEntity.ok().body(Response.builder()
+    public ApiResponse<List<ReplyCommentResponse>> getReplyCommentByCommentId(@RequestParam("comment_id") String commentId) {
+        return ApiResponse.<List<ReplyCommentResponse>>builder()
                 .data(replyCommentService.getReplyCommentsByCommentId(commentId))
                 .dateTime(LocalDateTime.now())
                 .statusCode(200)
                 .message("Lấy thông tin trả lời bình luận thành công")
-                .build());
+                .build();
     }
 }
