@@ -42,7 +42,7 @@ public class Post extends AbstractEntity<String> {
     Boolean status = true;
     //owner
     @Field("owner")
-    Owner owner;
+    ActorSnapshot owner;
     // Feed recommendation fields (BRD)
     @Field("tags")
     @Builder.Default

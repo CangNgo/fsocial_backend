@@ -1,6 +1,8 @@
 package com.fsocial.postservice.dto.complaint;
 
+import com.fsocial.postservice.enums.ComplaintType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -14,12 +16,8 @@ import java.time.LocalDateTime;
 public class ComplaintDTO {
     @NotBlank(message = "postId không được để trống")
     String postId;
-    @NotBlank(message = "userId không được để trống")
-    String userId;
-    @NotBlank(message = "complaintType không được để trống")
-    String complaintType;
+    @NotNull(message = "complaintType không được để trống")
+    ComplaintType complaintType;
     @NotBlank(message = "termOfServiceId không được để trống")
     String termOfServiceId;
-    LocalDateTime createDatetime = LocalDateTime.now();
-    boolean readding;
 }

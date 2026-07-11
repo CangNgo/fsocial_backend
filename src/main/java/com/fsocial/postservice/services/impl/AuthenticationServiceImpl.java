@@ -92,9 +92,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 account.getId(),
                 ActorSnapshot.builder()
                         .userId(account.getId())
-                        .username(account.getUsername())
                         .displayName(account.getDisplayName())
-                        .avatarUrl(account.getAvatar())
+                        .avatar(account.getAvatar())
                         .build(),
                 NotificationType.LOGIN
         ));

@@ -1,5 +1,6 @@
 package com.fsocial.postservice.dto.post;
 
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.ContentDTO;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -22,5 +23,5 @@ public class PostDTO {
     List<String> likes = new ArrayList<>();
     Boolean isShare = false;
     Boolean status = true;
-    OwnerDTO owner;
+    ActorSnapshotDTO owner;
 }

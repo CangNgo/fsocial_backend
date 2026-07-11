@@ -1,6 +1,6 @@
 package com.fsocial.postservice.services;
 
-import com.fsocial.postservice.dto.Account.OwnerDTO;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.request.AccountRegisterRequest;
 import com.fsocial.postservice.dto.request.DuplicationRequest;
@@ -9,7 +9,6 @@ import com.fsocial.postservice.dto.response.AccountStatisticRegisterDTO;
 import com.fsocial.postservice.dto.response.AccountStatisticRegisterLongDateDTO;
 import com.fsocial.postservice.dto.response.DuplicationResponse;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.Owner;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,5 +24,5 @@ public interface AccountService {
     List<AccountStatisticRegisterLongDateDTO> countByCreatedAtByStartEnd(LocalDateTime startDay, LocalDateTime endDay);
     String banUser(String userId);
     AccountResponse getProfile (String userId);
-    OwnerDTO getOwner(String userId);
+    ActorSnapshotDTO getOwner(String userId);
 }

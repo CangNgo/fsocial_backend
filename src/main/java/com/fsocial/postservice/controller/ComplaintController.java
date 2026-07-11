@@ -13,6 +13,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -24,13 +26,13 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequestMapping("/complaint")
 @Slf4j
-public class ComplainController {
+public class ComplaintController {
 
     ComplaintService complaintService;
 
     @PostMapping
-    public ApiResponse<ComplaintDTO> addComplaint(@RequestBody @Valid ComplaintDTO complaint) throws AppCheckedException {
-        ComplaintDTO complaintDTO = complaintService.addComplaint(complaint);
+    public ApiResponse<ComplaintDTO> addComplaint(@RequestBody @Valid ComplaintDTO complaint, @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+        ComplaintDTO complaintDTO = complaintService.addComplaint(complaint, jwt.getSubject());
         return ApiResponse.<ComplaintDTO>builder()
                 .data(complaintDTO)
                 .message("Báo cáo bài viết thành công")

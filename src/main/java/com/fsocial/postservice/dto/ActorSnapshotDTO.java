@@ -1,16 +1,17 @@
-package com.fsocial.postservice.dto.Account;
+package com.fsocial.postservice.dto;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.annotation.Id;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class OwnerDTO {
-    String id;
-    String lastName;
-    String firstName;
+public class ActorSnapshotDTO {
+    @Id
+    String userId;
+    String displayName;
     String avatar;
 }

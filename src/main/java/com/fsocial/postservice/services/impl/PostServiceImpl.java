@@ -1,6 +1,6 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.Account.OwnerDTO;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.ContentDTO;
 import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.dto.post.*;
@@ -151,7 +151,7 @@ public class PostServiceImpl implements PostService {
 
         Post post = Post.builder()
                 .content(contentMapper.toContent(contentDTO))
-                .owner(Owner.builder().userId(postRequest.getUserId()).build())
+                .owner(ActorSnapshot.builder().userId(postRequest.getUserId()).build())
                 .isShare(true)
                 .originPostId(postRequest.getOriginPostId())
                 .likes(new ArrayList<>())
@@ -177,13 +177,13 @@ public class PostServiceImpl implements PostService {
     /** Bỏ qua nếu tự thao tác trên bài viết của chính mình */
     private void notifyOwner(String ownerId, String actorId, NotificationType type) {
         if (ownerId == null || ownerId.equals(actorId)) return;
-        OwnerDTO actor = accountService.getOwner(actorId);
+        ActorSnapshotDTO actor = accountService.getOwner(actorId);
         notificationEvent.publishCreateNotification(new NotificationDTO(
                 ownerId,
                 ActorSnapshot.builder()
-                        .userId(actor.getId())
-                        .displayName(DisplayNameUtils.build(actor.getLastName(), actor.getFirstName()))
-                        .avatarUrl(actor.getAvatar())
+                        .userId(actor.getUserId())
+                        .displayName(actor.getDisplayName())
+                        .avatar(actor.getAvatar())
                         .build(),
                 type
         ));
@@ -207,10 +207,10 @@ public class PostServiceImpl implements PostService {
     private Post buildPost(ContentDTO contentDTO, PostDTORequest postRequest) {
         Post post = postMapper.toPost(postRequest);
 
-        OwnerDTO owner = accountService.getOwner(postRequest.getUserId());
-        post.setOwner(Owner.builder()
-                .userId(owner.getId())
-                .displayName(DisplayNameUtils.build(owner.getLastName(), owner.getFirstName()))
+        ActorSnapshotDTO owner = accountService.getOwner(postRequest.getUserId());
+        post.setOwner(ActorSnapshot.builder()
+                .userId(owner.getUserId())
+                .displayName(owner.getDisplayName())
                 .avatar(owner.getAvatar())
                 .build());
         post.setContent(contentMapper.toContent(contentDTO));

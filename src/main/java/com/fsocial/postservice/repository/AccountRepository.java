@@ -1,8 +1,7 @@
 package com.fsocial.postservice.repository;
 
-import com.fsocial.postservice.dto.Account.OwnerDTO;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.Owner;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -40,5 +39,5 @@ public interface AccountRepository extends MongoRepository<Account, String> {
     @Aggregation(pipeline = {
             "{'$match':  {'_id':  ?0}}"
     })
-    Optional<OwnerDTO> findOwnerById(String userId);
+    Optional<ActorSnapshotDTO> findOwnerById(String userId);
 }

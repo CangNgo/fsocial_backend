@@ -15,5 +15,6 @@ public enum NotificationType {
     MESSAGE,
     SYSTEM,
     LOGIN,
-    LOGIN_NEW_DEVICE
+    LOGIN_NEW_DEVICE,
+    REPORT
 }

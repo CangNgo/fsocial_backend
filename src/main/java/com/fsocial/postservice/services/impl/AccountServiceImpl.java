@@ -1,12 +1,11 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.Account.OwnerDTO;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.request.AccountRegisterRequest;
 import com.fsocial.postservice.dto.request.DuplicationRequest;
 import com.fsocial.postservice.dto.response.*;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.Owner;
 import com.fsocial.postservice.entity.RefreshToken;
 import com.fsocial.postservice.entity.Token;
 import com.fsocial.postservice.enums.AccountErrorCode;
@@ -211,8 +210,8 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public OwnerDTO getOwner(String userId) {
-        Optional<OwnerDTO> owner = accountRepository.findOwnerById(userId);
+    public ActorSnapshotDTO getOwner(String userId) {
+        Optional<ActorSnapshotDTO> owner = accountRepository.findOwnerById(userId);
         if (owner.isEmpty()) {
             throw new AppUnCheckedException(StatusCode.USER_NOT_FOUND);
         }

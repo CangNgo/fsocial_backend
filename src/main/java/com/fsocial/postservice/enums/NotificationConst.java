@@ -75,6 +75,12 @@ public enum NotificationConst {
             NotificationType.LOGIN_NEW_DEVICE,
             "Phát hiện đăng nhập mới",
             "Tài khoản của bạn vừa được đăng nhập trên thiết bị %s."
+    ),
+
+    REPORT(
+            NotificationType.REPORT,
+            "Báo cáo bài viết",
+            "Bạn đã báo cáo bài viết thành công"
     );
 
     private final NotificationType type;

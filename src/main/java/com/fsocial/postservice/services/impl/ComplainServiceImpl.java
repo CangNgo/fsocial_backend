@@ -1,19 +1,25 @@
 package com.fsocial.postservice.services.impl;//package com.fsocial.postservice.services.impl;
 
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.complaint.ComplaintDTO;
 import com.fsocial.postservice.dto.complaint.ComplaintDTOResponse;
+import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.dto.response.AccountResponse;
+import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Complaint;
 import com.fsocial.postservice.entity.TermOfServices;
+import com.fsocial.postservice.enums.NotificationType;
 import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.ComplantMapper;
+import com.fsocial.postservice.publisher.NotificationEvent;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.repository.ComplaintRepository;
 import com.fsocial.postservice.repository.TermRepository;
 import com.fsocial.postservice.repository.httpClient.ProfileClient;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.ComplaintService;
+import com.fsocial.postservice.util.DisplayNameUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -41,10 +47,27 @@ public class ComplainServiceImpl implements ComplaintService {
 
     AccountService accountService;
 
+    NotificationEvent notificationEvent;
+
     @Override
-    public ComplaintDTO addComplaint(ComplaintDTO complaint) throws AppCheckedException {
-        Complaint complaintentity = complantMapper.toComplaint(complaint);
-        Complaint res = complaintRepository.save(complaintentity);
+    public ComplaintDTO addComplaint(ComplaintDTO complaintDTO,String userId) throws AppCheckedException {
+        Complaint complaint = complantMapper.toComplaint(complaintDTO);
+
+        complaint.setUserId(userId);
+
+        Complaint res = complaintRepository.save(complaint);
+
+        ActorSnapshotDTO reporter = accountService.getOwner(userId);
+        notificationEvent.publishCreateNotification(new NotificationDTO(
+                userId,
+                ActorSnapshot.builder()
+                        .userId(reporter.getUserId())
+                        .displayName(reporter.getDisplayName())
+                        .avatar(reporter.getAvatar())
+                        .build(),
+                NotificationType.REPORT
+        ));
+
         return complantMapper.toComplaintDTO(res);
     }
 
@@ -52,7 +75,7 @@ public class ComplainServiceImpl implements ComplaintService {
     public ComplaintDTO readComplaint(String complaintId) throws AppCheckedException {
         Complaint complaint = complaintRepository.findById(complaintId)
                 .orElseThrow(() -> new AppCheckedException("Không tìm thấy khiếu nại", StatusCode.COMPLAIN_NOT_FOUND));
-        complaint.setReadding(true);
+        complaint.setRead(true);
 
         return complantMapper.toComplaintDTO(complaintRepository.save(complaint));
     }
@@ -141,7 +164,7 @@ public class ComplainServiceImpl implements ComplaintService {
                 .postId(complaint.getPostId())
                 .profileId(profileResponse.getId())
                 .complaintType(complaint.getComplaintType())
-                .readding(complaint.isReadding())
+                .isRead(complaint.isRead())
                 .termOfService(term.getName())
                 .createDatetime(complaint.getCreateDatetime())
                 .displayName(profileResponse.getDisplayName())

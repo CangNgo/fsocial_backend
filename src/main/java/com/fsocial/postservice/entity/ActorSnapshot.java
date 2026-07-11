@@ -1,6 +1,7 @@
 package com.fsocial.postservice.entity;
 
 import lombok.*;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 @Getter
 @Setter
@@ -8,8 +9,9 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ActorSnapshot {
+    @Field("user_id")
     private String userId;
-    private String username;
+    @Field("display_name")
     private String displayName;
-    private String avatarUrl;
+    private String avatar;
 }

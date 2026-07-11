@@ -1,5 +1,6 @@
 package com.fsocial.postservice.dto.complaint;
 
+import com.fsocial.postservice.enums.ComplaintType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -16,9 +17,9 @@ public class ComplaintDTOResponse {
     String userId;
     String displayName;
     String profileId;
-    String complaintType;
+    ComplaintType complaintType;
     String termOfService;
     LocalDateTime createDatetime;
-    boolean readding;
+    boolean isRead;
 }
 

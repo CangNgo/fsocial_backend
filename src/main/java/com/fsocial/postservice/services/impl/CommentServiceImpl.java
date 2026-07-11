@@ -1,6 +1,6 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.Account.OwnerDTO;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.comment.CommentDTO;
 import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
@@ -89,13 +89,13 @@ public class CommentServiceImpl implements CommentService {
     /** Bỏ qua nếu tự bình luận trên bài viết của chính mình */
     private void notifyOwner(String ownerId, String actorId, NotificationType type) {
         if (ownerId == null || ownerId.equals(actorId)) return;
-        OwnerDTO actor = accountService.getOwner(actorId);
+        ActorSnapshotDTO actor = accountService.getOwner(actorId);
         notificationEvent.publishCreateNotification(new NotificationDTO(
                 ownerId,
                 ActorSnapshot.builder()
-                        .userId(actor.getId())
-                        .displayName(DisplayNameUtils.build(actor.getLastName(), actor.getFirstName()))
-                        .avatarUrl(actor.getAvatar())
+                        .userId(actor.getUserId())
+                        .displayName(actor.getDisplayName())
+                        .avatar(actor.getAvatar())
                         .build(),
                 type
         ));
