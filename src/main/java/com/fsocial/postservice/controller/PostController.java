@@ -2,8 +2,9 @@ package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.post.*;
+import com.fsocial.postservice.dto.response.SearchPageResponse;
 import com.fsocial.postservice.entity.Post;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.PostService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +36,7 @@ public class PostController {
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<PostDTO> createPost(@Valid @ModelAttribute PostDTORequest request, @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+    public ApiResponse<PostDTO> createPost(@Valid @ModelAttribute PostDTORequest request, @AuthenticationPrincipal Jwt jwt) {
         //Bai viet phai co noi dung hoac hinh anh
 
         String userId = jwt.getSubject();
@@ -43,7 +44,7 @@ public class PostController {
 
         if ((request.getText() == null || request.getText().isEmpty())
                 && (request.getMedia() == null || request.getMedia().length == 0)) {
-            throw new AppCheckedException("Bài viết phải có nội dung, hình ảnh hoặc video", StatusCode.NOT_CONTENT);
+            throw new AppException("Bài viết phải có nội dung, hình ảnh hoặc video", StatusCode.NOT_CONTENT);
         }
 
         PostDTO post = postService.createPost(request);
@@ -59,11 +60,11 @@ public class PostController {
     public ApiResponse<PostDTO> updatePost(
             @RequestParam("text") String text,
             @RequestParam("html") String html,
-            @RequestParam("postId") String postId) throws AppCheckedException {
+            @RequestParam("postId") String postId) {
 
         //check postId
         if (postId == null || postId.isEmpty()) {
-            throw new AppCheckedException("Mã bài viết không được để trống", StatusCode.POST_NOT_FOUND);
+            throw new AppException("Mã bài viết không được để trống", StatusCode.POST_NOT_FOUND);
         }
 
         //Mapping DTO
@@ -132,7 +133,7 @@ public class PostController {
 
     @GetMapping
     public ApiResponse<List<PostResponse>> getPosts(@AuthenticationPrincipal Jwt jwt,
-                                                    @RequestParam(value = "size", defaultValue = "10") int size) throws AppCheckedException {
+                                                    @RequestParam(value = "size", defaultValue = "10") int size) {
         String userId = jwt.getSubject();
         int feedSize = Math.min(50, Math.max(1, size));
         List<PostResponse> posts = postService.getPostsByUserId(userId, feedSize);
@@ -145,7 +146,7 @@ public class PostController {
     }
 
     @GetMapping("/following")
-    public ApiResponse<List<PostResponse>> getPostsByFollowing(@AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+    public ApiResponse<List<PostResponse>> getPostsByFollowing(@AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getSubject();
         List<PostResponse> posts = postService.getPostByFollowing(userId);
         log.info("Lấy thông tin bài viết theo following thành công");
@@ -157,12 +158,15 @@ public class PostController {
     }
 
     @GetMapping("/find")
-    public ApiResponse<List<PostResponse>> findPost(@RequestParam("find_post") String findString,
-                                                    @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+    public ApiResponse<SearchPageResponse<PostResponse>> findPost(
+            @RequestParam("find_post") String findString,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getSubject();
-        List<PostResponse> findByText = postService.findByText(findString, userId);
+        SearchPageResponse<PostResponse> findByText = postService.findByText(findString, userId, page, size);
         log.info("Tìm kiếm bài đăng theo text thành công");
-        return ApiResponse.<List<PostResponse>>builder()
+        return ApiResponse.<SearchPageResponse<PostResponse>>builder()
                 .message("Lấy bài đăng thành công")
                 .dateTime(LocalDateTime.now())
                 .data(findByText)
@@ -171,7 +175,7 @@ public class PostController {
 
     @GetMapping("/getpost_id")
     public ApiResponse<PostResponse> getPostId(@RequestParam("post_id") String postId,
-                                               @AuthenticationPrincipal Jwt jwt) throws AppCheckedException {
+                                               @AuthenticationPrincipal Jwt jwt) {
         String userId = jwt.getSubject();
         PostResponse result = postService.getPostById(postId, userId);
         log.info("Tìm kiếm bài đăng theo id thành công");

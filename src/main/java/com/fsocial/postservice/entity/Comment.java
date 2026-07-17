@@ -29,4 +29,7 @@ public class Comment extends AbstractEntity<String> {
     LocalDateTime createDatetime;
     @Field("reply")
     Boolean reply;
+    @Builder.Default
+    @Field("replies")
+    List<ReplyComment> replies = new ArrayList<>();
 }

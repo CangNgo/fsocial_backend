@@ -5,14 +5,14 @@ import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
-import com.fsocial.postservice.entity.Comment;
 import com.fsocial.postservice.entity.ReplyComment;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.ReplyCommentService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -29,21 +29,28 @@ public class ReplyCommentController {
 
     ReplyCommentService replyCommentService;
 
-    @GetMapping("/like")
-    public ApiResponse<Map<String, Boolean>> likeReplyComment(@RequestBody @Valid LikeReplyCommentDTO request) throws AppCheckedException {
+    @PostMapping("/like")
+    public ApiResponse<Map<String, Boolean>> likeReplyComment(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid LikeReplyCommentDTO request
+    ) {
+        request.setUserId(jwt.getSubject());
         boolean like = replyCommentService.likeReplyComment(request);
         Map<String, Boolean> map = new HashMap<>();
         map.put("like", like);
         return ApiResponse.<Map<String, Boolean>>builder()
                 .data(map)
                 .dateTime(LocalDateTime.now())
-                .message(like?"Like thành công":"Bỏ like thành công")
+                .message(like ? "Like thành công" : "Bỏ like thành công")
                 .build();
     }
 
     @PostMapping
-    public ApiResponse<ReplyComment> replyComment(ReplyCommentRequest request) throws AppCheckedException, IOException {
-
+    public ApiResponse<ReplyComment> replyComment(
+            @AuthenticationPrincipal Jwt jwt,
+            ReplyCommentRequest request
+    ) throws IOException {
+        request.setUserId(jwt.getSubject());
         ReplyComment response = replyCommentService.addReplyComment(request);
 
         return ApiResponse.<ReplyComment>builder()
@@ -54,7 +61,7 @@ public class ReplyCommentController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteReplyComment(@PathVariable("id") String id) throws AppCheckedException {
+    public ApiResponse<String> deleteReplyComment(@PathVariable("id") String id) {
         return ApiResponse.<String>builder()
                 .data(replyCommentService.deleteReplyComment(id))
                 .message("Delete reply comment successfully")
@@ -62,7 +69,11 @@ public class ReplyCommentController {
     }
 
     @PutMapping
-    public ApiResponse<ReplyComment> updateReplyComment(ReplyCommentUpdateDTORequest request) throws AppCheckedException {
+    public ApiResponse<ReplyComment> updateReplyComment(
+            @AuthenticationPrincipal Jwt jwt,
+            ReplyCommentUpdateDTORequest request
+    ) {
+        request.setUserId(jwt.getSubject());
         ReplyComment update = replyCommentService.updateReplyComment(request);
         return ApiResponse.<ReplyComment>builder()
                 .data(update)
@@ -71,7 +82,7 @@ public class ReplyCommentController {
     }
 
     // API from timelineService
-    @GetMapping()
+    @GetMapping
     public ApiResponse<List<ReplyCommentResponse>> getReplyCommentByCommentId(@RequestParam("comment_id") String commentId) {
         return ApiResponse.<List<ReplyCommentResponse>>builder()
                 .data(replyCommentService.getReplyCommentsByCommentId(commentId))

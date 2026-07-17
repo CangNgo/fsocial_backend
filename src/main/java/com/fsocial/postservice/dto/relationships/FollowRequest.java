@@ -10,10 +10,6 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @Data
 public class FollowRequest {
-
     @NotBlank(message = "REQUIRED_FIELD")
-    String userId;
-
-    @NotBlank(message = "REQUIRED_FIELD")
-    String targetId;
+    String following;
 }

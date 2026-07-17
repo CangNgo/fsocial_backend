@@ -1,15 +1,11 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
-import com.fsocial.postservice.dto.profile.ProfileDTO;
 import com.fsocial.postservice.dto.profile.ProfileResponse;
+import com.fsocial.postservice.dto.request.UpdateProfileRequest;
 import com.fsocial.postservice.dto.response.AccountResponse;
 import com.fsocial.postservice.services.AccountService;
-import com.fsocial.postservice.services.JwtService;
 import com.fsocial.postservice.services.ProfileService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import jodd.exception.UncheckedException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,23 +22,26 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ProfileController {
 
-    JwtService jwtService;
     AccountService accountService;
     ProfileService profileService;
 
     @GetMapping()
-    public ApiResponse<AccountResponse> getProfile(HttpServletRequest httpServletRequest) {
-
-        String authHeader = httpServletRequest.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new UncheckedException("Authorization not found");
-        }
-
-        String userId = jwtService.getUserId(jwtService.getToken(authHeader));
+    public ApiResponse<AccountResponse> getProfile(@AuthenticationPrincipal Jwt jwt) {
 
         return ApiResponse.<AccountResponse>builder()
-                .data(accountService.getProfile(userId))
+                .data(accountService.getUser(jwt.getSubject()))
                 .message("Lấy thông tin tài khoản thành công")
+                .build();
+    }
+
+    @PutMapping("/update")
+    public ApiResponse<AccountResponse> updateProfile(
+            @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return ApiResponse.<AccountResponse>builder()
+                .data(profileService.updatePersonalInfo(request, jwt.getSubject()))
+                .message("Cập nhật thông tin cá nhân thành công")
                 .build();
     }
 

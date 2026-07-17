@@ -5,25 +5,16 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ReplyComment extends AbstractEntity<String> {
-
-    @Field("content")
-    Content content;
-
-    @Field("userId")
+@Builder
+public class ComplaintDetail {
     String userId;
-
-    @Field("likes")
-    List<String> likes = new ArrayList<>();
-
+    String termOfServiceId;
     @Field("created_datetime")
     LocalDateTime createDatetime;
 }

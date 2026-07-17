@@ -6,7 +6,6 @@ import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.dto.comment.LikeCommentDTO;
 import com.fsocial.postservice.entity.Comment;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.CommentService;
 import jakarta.validation.Valid;
@@ -14,6 +13,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -32,7 +33,11 @@ public class CommentController {
     CommentService commentService;
 
     @PostMapping
-    public ApiResponse<Comment> createComment(CommentDTORequest request) throws AppCheckedException {
+    public ApiResponse<Comment> createComment(
+            @AuthenticationPrincipal Jwt jwt,
+            CommentDTORequest request
+    ) {
+        request.setUserId(jwt.getSubject());
         Comment comment = commentService.addComment(request);
         return ApiResponse.<Comment>builder()
                 .data(comment)
@@ -41,11 +46,15 @@ public class CommentController {
     }
 
     @PostMapping("/like")
-    public ApiResponse<Map<String, Object>> likeComment(@RequestBody @Valid LikeCommentDTO dto) throws AppCheckedException {
-        boolean like = commentService.toggleLikeComment(dto.getCommentId(), dto.getUserId());
+    public ApiResponse<Map<String, Object>> likeComment(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid LikeCommentDTO dto
+    ) {
+        String userId = jwt.getSubject();
+        boolean like = commentService.toggleLikeComment(dto.getCommentId(), userId);
         Map<String, Object> result = new HashMap<>();
         result.put("like", like);
-        result.put("userid", dto.getUserId());
+        result.put("userid", userId);
         return ApiResponse.<Map<String, Object>>builder()
                 .data(result)
                 .message(like ? "Thích bình luận thành công" : "Hủy thích bình luận thành công")
@@ -53,7 +62,11 @@ public class CommentController {
     }
 
     @PutMapping
-    public ApiResponse<Comment> updateComment(@RequestBody @Valid CommentUpdateDTORequest dto) throws AppCheckedException {
+    public ApiResponse<Comment> updateComment(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid CommentUpdateDTORequest dto
+    ) {
+        dto.setUserId(jwt.getSubject());
         Comment update = commentService.updateComment(dto);
         return ApiResponse.<Comment>builder()
                 .message("Comment updated successfully")

@@ -5,7 +5,7 @@ import com.fsocial.postservice.dto.request.OtpRequest;
 import com.fsocial.postservice.dto.response.MailInformation;
 import com.fsocial.postservice.enums.AccountErrorCode;
 import com.fsocial.postservice.enums.RedisKeyType;
-import com.fsocial.postservice.exception.AccountException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.services.OtpService;
 import com.fsocial.postservice.util.MailUtils;
 import lombok.RequiredArgsConstructor;
@@ -56,11 +56,11 @@ public class OtpServiceImpl implements OtpService {
 
         if (storedOtp == null) {
             log.warn("OTP không tồn tại hoặc đã hết hạn cho email: {}", email);
-            throw new AccountException(AccountErrorCode.OTP_INVALID);
+            throw new AppException(AccountErrorCode.OTP_INVALID);
         }
         if (!storedOtp.equals(otp)) {
             log.warn("OTP không hợp lệ cho email: {}", email);
-            throw new AccountException(AccountErrorCode.OTP_INVALID);
+            throw new AppException(AccountErrorCode.OTP_INVALID);
         }
 
         redisTemplate.opsForValue().set(redisKey, RedisKeyType.VALUE_AFTER_VERIFY.getType(), durationVerify, TimeUnit.SECONDS);
@@ -77,7 +77,7 @@ public class OtpServiceImpl implements OtpService {
         String value = redisTemplate.opsForValue().get(redisKey);
         if (!RedisKeyType.VALUE_AFTER_VERIFY.getType().equals(value)) {
             log.warn("Email chưa được xác thực: {}", email);
-            throw new AccountException(AccountErrorCode.UNAUTHENTICATED);
+            throw new AppException(AccountErrorCode.UNAUTHENTICATED);
         }
     }
 
@@ -94,7 +94,7 @@ public class OtpServiceImpl implements OtpService {
     private String checkKeyPrefix(String type) {
         if (!type.equals(RedisKeyType.REGISTER.getType()) && !type.equals(RedisKeyType.RESET.getType())) {
             log.error("Sai loại yêu cầu: {}", type);
-            throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         }
         return type.equals(RedisKeyType.REGISTER.getType())
                 ? RedisKeyType.REGISTER.getRedisKeyPrefix()

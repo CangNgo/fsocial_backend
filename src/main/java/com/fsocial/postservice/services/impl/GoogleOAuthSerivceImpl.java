@@ -1,7 +1,6 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.exception.AppCheckedException;
-import com.fsocial.postservice.exception.AppUnCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.GoogleOAuthService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
@@ -41,19 +40,19 @@ public class GoogleOAuthSerivceImpl implements GoogleOAuthService {
             GoogleIdToken token = verifier.verify(idToken);
 
             if (token == null) {
-                throw new AppUnCheckedException(StatusCode.INVALID_GOOGLE_TOKEN);
+                throw new AppException(StatusCode.INVALID_GOOGLE_TOKEN);
             }
 
             GoogleIdToken.Payload payload = token.getPayload();
 
             if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-                throw new AppUnCheckedException(StatusCode.INVALID_GOOGLE_TOKEN);
+                throw new AppException(StatusCode.INVALID_GOOGLE_TOKEN);
             }
 
             return payload;
         } catch (IOException | GeneralSecurityException e) {
             log.error("Failed to exchange authorization code", e);
-            throw new AppUnCheckedException(StatusCode.IOEXCEPTION);
+            throw new AppException(StatusCode.IOEXCEPTION);
         }
     }
 }

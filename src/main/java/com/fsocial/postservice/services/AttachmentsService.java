@@ -1,7 +1,6 @@
 package com.fsocial.postservice.services;
 
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
-import com.fsocial.postservice.exception.AppCheckedException;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;

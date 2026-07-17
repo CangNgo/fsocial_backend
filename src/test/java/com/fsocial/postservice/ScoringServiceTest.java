@@ -1,6 +1,6 @@
 package com.fsocial.postservice;
 
-import com.fsocial.postservice.entity.Owner;
+import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.services.impl.ScoringServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -153,7 +153,7 @@ class ScoringServiceTest {
         post.setShareCount(shares);
         post.setTags(List.of());
         post.setCreateDatetime(LocalDateTime.now().minusHours(ageHours));
-        post.setOwner(Owner.builder().userId("owner1").build());
+        post.setOwner(ActorSnapshot.builder().userId("owner1").build());
         return post;
     }
 }

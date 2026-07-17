@@ -32,8 +32,11 @@ public class NotificationController {
     DemoNotificationService demoNotificationService;
 
     @PostMapping("/register-token")
-    public ApiResponse<Void> registerToken(@RequestBody DeviceTokenDTO req) {
-        tokenService.registerToken(req.userId(), req.token(), req.deviceType());
+    public ApiResponse<Void> registerToken(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody DeviceTokenDTO req
+    ) {
+        tokenService.registerToken(jwt.getSubject(), req.token(), req.deviceType());
         return ApiResponse.<Void>builder()
                 .message("Register token success")
                 .build();

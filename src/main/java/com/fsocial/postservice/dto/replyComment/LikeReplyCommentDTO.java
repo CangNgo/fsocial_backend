@@ -12,6 +12,5 @@ import lombok.experimental.FieldDefaults;
 public class LikeReplyCommentDTO {
     @NotBlank(message = "Replycomment Id không được bỏ trống")
     String replyCommentId;
-    @NotBlank(message = "User Id không được bỏ trống")
     String userId;
 }

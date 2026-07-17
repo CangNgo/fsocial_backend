@@ -5,7 +5,7 @@ import com.fsocial.postservice.dto.response.RoleResponse;
 import com.fsocial.postservice.entity.Permission;
 import com.fsocial.postservice.entity.Role;
 import com.fsocial.postservice.enums.AccountErrorCode;
-import com.fsocial.postservice.exception.AccountException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.mapper.RoleMapper;
 import com.fsocial.postservice.repository.PermissionRepository;
 import com.fsocial.postservice.repository.RoleRepository;
@@ -46,7 +46,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     public RoleResponse updateRole(String roleId, Set<String> newPermissions) {
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new AppException(AccountErrorCode.NOT_FOUND));
 
         var permissions = permissionRepository.findAllById(newPermissions);
         Set<Permission> permissionSet = role.getPermissions() != null ? role.getPermissions() : new HashSet<>();

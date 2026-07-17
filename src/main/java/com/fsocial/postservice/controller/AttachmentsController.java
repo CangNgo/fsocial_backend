@@ -3,7 +3,6 @@ package com.fsocial.postservice.controller;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
 import com.fsocial.postservice.dto.page.AttachmentsRequest;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.AttachmentsService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

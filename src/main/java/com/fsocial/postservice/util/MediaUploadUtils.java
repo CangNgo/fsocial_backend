@@ -1,7 +1,7 @@
 package com.fsocial.postservice.util;
 
 import com.fsocial.postservice.entity.MediaItem;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.UploadMedia;
 import lombok.RequiredArgsConstructor;
@@ -16,18 +16,18 @@ public class MediaUploadUtils {
 
     private final UploadMedia uploadMedia;
 
-    public MediaItem[] uploadValidMedia(MultipartFile[] media) throws AppCheckedException {
+    public MediaItem[] uploadValidMedia(MultipartFile[] media) {
         if (media == null || media.length == 0) return new MediaItem[0];
 
         if (!hasValidMedia(media)) return new MediaItem[0];
 
         try {
             return uploadMedia.uploadMedia(media);
-        } catch (AppCheckedException e) {
+        } catch (AppException e) {
             throw e;
         } catch (Exception e) {
             log.error("Lỗi khi tải lên tệp: {}", e.getMessage(), e);
-            throw new AppCheckedException("Upload hình ảnh thất bại", StatusCode.UPLOAD_MEDIA_FAILED);
+            throw new AppException("Upload hình ảnh thất bại", StatusCode.UPLOAD_MEDIA_FAILED);
         }
     }
 

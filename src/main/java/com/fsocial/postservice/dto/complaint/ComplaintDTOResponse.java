@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ComplaintDTOResponse {
     String id;
-    String postId;
+    String targetId;
     String userId;
     String displayName;
     String profileId;
@@ -21,5 +21,6 @@ public class ComplaintDTOResponse {
     String termOfService;
     LocalDateTime createDatetime;
     boolean isRead;
+    int reportCount;
 }
 

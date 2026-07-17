@@ -10,6 +10,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Document(collection = "accounts")
 @Setter
@@ -71,4 +73,13 @@ public class Account extends AbstractEntity<String> {
 
     @Field(name = "google_id")
     private String googleId;
+
+    @Field("follower")
+    Set<String> follower = new HashSet<>();
+
+    @Field("following")
+    Set<String> following = new HashSet<>();
+
+    @Field("is_public")
+    Boolean isPublic;
 }

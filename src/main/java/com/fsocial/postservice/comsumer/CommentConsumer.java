@@ -2,7 +2,6 @@ package com.fsocial.postservice.comsumer;
 
 import com.fsocial.postservice.dto.comment.CommentDTO;
 import com.fsocial.postservice.dto.post.PostDTO;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.CommentService;
 import com.fsocial.postservice.services.PostService;
 import lombok.AccessLevel;
@@ -23,7 +22,7 @@ public class CommentConsumer {
     CommentService commentService;
 
     @RabbitListener(queues = "#{@postCommentDeleteQueue.name}")
-    public void receiveComment(String postId) throws AppCheckedException {
+    public void receiveComment(String postId) {
         commentService.deleteCommentByPostId(postId);
     }
 }

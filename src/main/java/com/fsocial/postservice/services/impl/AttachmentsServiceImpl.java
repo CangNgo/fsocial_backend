@@ -2,7 +2,6 @@ package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
 import com.fsocial.postservice.entity.Attachments;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.AttachmentMapper;
 import com.fsocial.postservice.repository.AccountRepository;

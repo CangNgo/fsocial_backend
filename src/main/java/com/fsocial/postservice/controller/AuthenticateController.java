@@ -8,7 +8,6 @@ import com.fsocial.postservice.dto.response.DuplicationResponse;
 import com.fsocial.postservice.dto.response.IntrospectResponse;
 import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.enums.AccountResponseStatus;
-import com.fsocial.postservice.exception.AccountCheckedException;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.AuthenticationService;
 import com.fsocial.postservice.services.OtpService;
@@ -48,7 +47,7 @@ public class AuthenticateController {
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> handleLogin(@RequestBody @Valid AccountLoginRequest request,
             @RequestHeader("User-Agent") String userAgent,
-            HttpServletRequest httpRequest) throws AccountCheckedException {
+            HttpServletRequest httpRequest) {
         return ApiResponse.<AuthenticationResponse>builder()
                 .statusCode(AccountResponseStatus.SUCCESS.getCODE())
                 .message(AccountResponseStatus.SUCCESS.getMessage())

@@ -1,21 +1,24 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
+import com.fsocial.postservice.dto.relationships.FollowRequest;
 import com.fsocial.postservice.dto.request.ChangePasswordRequest;
 import com.fsocial.postservice.dto.response.AccountResponse;
 import com.fsocial.postservice.dto.response.AccountStatisticRegisterDTO;
 import com.fsocial.postservice.dto.response.AccountStatisticRegisterLongDateDTO;
+import com.fsocial.postservice.dto.response.ManageUserResponse;
+import com.fsocial.postservice.dto.response.SearchPageResponse;
 import com.fsocial.postservice.enums.AccountResponseStatus;
+import com.fsocial.postservice.enums.ResponseStatus;
 import com.fsocial.postservice.services.AccountService;
-import com.fsocial.postservice.services.JwtService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jodd.exception.UncheckedException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -32,8 +36,6 @@ import java.util.Map;
 public class AccountController {
 
     AccountService accountService;
-    JwtService jwtService;
-    HttpServletRequest httpServletRequest;
 
     @GetMapping("/{userId}")
     public ApiResponse<AccountResponse> getAccount(@PathVariable String userId) {
@@ -45,9 +47,11 @@ public class AccountController {
     }
 
     @PutMapping("/change-password")
-    public ApiResponse<Void> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        accountService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
+    public ApiResponse<Void> changePassword(
+            @RequestBody @Valid ChangePasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        accountService.changePassword(jwt.getSubject(), request.getOldPassword(), request.getNewPassword());
         return ApiResponse.<Void>builder()
                 .statusCode(AccountResponseStatus.PASSWORD_CHANGED.getCODE())
                 .message(AccountResponseStatus.PASSWORD_CHANGED.getMessage())
@@ -89,6 +93,16 @@ public class AccountController {
                 .build();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public ApiResponse<List<ManageUserResponse>> getAllUsers() {
+        return ApiResponse.<List<ManageUserResponse>>builder()
+                .data(accountService.getAllUsers())
+                .message("Lấy danh sách người dùng thành công")
+                .build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/ban")
     public ApiResponse<Object> banAccount(@RequestParam("user_id") String userId) {
         return ApiResponse.<Object>builder()
@@ -98,18 +112,61 @@ public class AccountController {
     }
 
     @GetMapping("/profile")
-    public ApiResponse<AccountResponse> getProfile(){
-
-        String authHeader = httpServletRequest.getHeader("Authorization");
-        if(authHeader == null || !authHeader.startsWith("Bearer ")){
-            throw new UncheckedException("Authorization not found");
-        }
-
-        String userId = jwtService.getUserId(jwtService.getToken(authHeader));
+    public ApiResponse<AccountResponse> getProfile(@AuthenticationPrincipal Jwt jwt){
 
         return ApiResponse.<AccountResponse>builder()
-                .data(accountService.getProfile(userId))
+                .data(accountService.getProfile(jwt.getSubject()))
                 .message("Lấy thông tin tài khoản thành công")
+                .build();
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<SearchPageResponse<AccountResponse>> searchUsers(
+            @RequestParam("q") String keyword,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        return ApiResponse.<SearchPageResponse<AccountResponse>>builder()
+                .data(accountService.searchUsers(keyword, page, size))
+                .message("Tìm kiếm người dùng thành công")
+                .build();
+    }
+
+    @PostMapping("/follow")
+    public ApiResponse<Void> follow(@RequestBody @Valid FollowRequest request,
+                                    @AuthenticationPrincipal Jwt jwt
+                                    ) {
+        accountService.follow(jwt.getSubject(), request.getFollowing());
+        return ApiResponse.<Void>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .build();
+    }
+
+    @PostMapping("/unfollow")
+    public ApiResponse<Void> unfollow(@RequestBody @Valid FollowRequest request,
+                                      @AuthenticationPrincipal Jwt jwt) {
+        accountService.unfollow(jwt.getSubject(), request.getFollowing());
+        return ApiResponse.<Void>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .build();
+    }
+
+    @GetMapping("/followers/{userId}")
+    public ApiResponse<Set<String>> getFollowers(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.<Set<String>>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .data(accountService.getFollowers(jwt.getSubject()))
+                .build();
+    }
+
+    @GetMapping("/followings/{userId}")
+    public ApiResponse<Set<String>> getFollowings(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.<Set<String>>builder()
+                .statusCode(ResponseStatus.SUCCESS.getCODE())
+                .message(ResponseStatus.SUCCESS.getMessage())
+                .data(accountService.getFollowing(jwt.getSubject()))
                 .build();
     }
 }

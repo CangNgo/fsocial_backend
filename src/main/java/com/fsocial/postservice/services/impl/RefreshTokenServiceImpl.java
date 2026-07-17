@@ -3,7 +3,7 @@ package com.fsocial.postservice.services.impl;
 import com.fsocial.postservice.dto.response.AuthenticationResponse;
 import com.fsocial.postservice.entity.RefreshToken;
 import com.fsocial.postservice.enums.AccountErrorCode;
-import com.fsocial.postservice.exception.AccountException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.repository.RefreshTokenRepository;
 import com.fsocial.postservice.services.JwtService;
@@ -42,7 +42,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Transactional
     public RefreshToken createRefreshToken(String username, String userAgent, String ipAddress) {
         accountRepository.findByUsername(username)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         long tokenCount = refreshTokenRepository.countByUsername(username);
         int MAX_REFRESH_TOKENS = 5;
@@ -70,10 +70,10 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         if (existedRT.getExpiryDate().isBefore(Instant.now())) {
             refreshTokenRepository.delete(existedRT);
             log.warn("Refresh token đã hết hạn: {}", token);
-            throw new AccountException(AccountErrorCode.TOKEN_EXPIRED);
+            throw new AppException(AccountErrorCode.TOKEN_EXPIRED);
         }
-        if (!existedRT.getUserAgent().equals(userAgent)) throw new AccountException(AccountErrorCode.UNAUTHENTICATED);
-        if (!existedRT.getIpAddress().equals(ipAddress)) throw new AccountException(AccountErrorCode.UNAUTHENTICATED);
+        if (!existedRT.getUserAgent().equals(userAgent)) throw new AppException(AccountErrorCode.UNAUTHENTICATED);
+        if (!existedRT.getIpAddress().equals(ipAddress)) throw new AppException(AccountErrorCode.UNAUTHENTICATED);
 
         return existedRT;
     }
@@ -105,7 +105,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         return refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> {
                     log.warn("Refresh token không hợp lệ: {}", refreshToken);
-                    return new AccountException(AccountErrorCode.INVALID_TOKEN);
+                    return new AppException(AccountErrorCode.INVALID_TOKEN);
                 });
     }
 

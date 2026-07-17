@@ -6,7 +6,7 @@ import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.dto.post.*;
 import com.fsocial.postservice.entity.*;
 import com.fsocial.postservice.enums.NotificationType;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.ContentMapper;
 import com.fsocial.postservice.mapper.PostMapper;
@@ -15,7 +15,7 @@ import com.fsocial.postservice.publisher.NotificationEvent;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.repository.CommentRepository;
 import com.fsocial.postservice.repository.PostRepository;
-import com.fsocial.postservice.repository.RelationshipRepository;
+import com.fsocial.postservice.dto.response.SearchPageResponse;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.FeedService;
 import com.fsocial.postservice.services.PostService;
@@ -51,7 +51,6 @@ public class PostServiceImpl implements PostService {
     PostRepository postRepository;
     AccountRepository accountRepository;
     CommentRepository commentRepository;
-    RelationshipRepository relationshipRepository;
     MongoTemplate mongoTemplate;
     MediaUploadUtils mediaUploadUtils;
     PostMapper postMapper;
@@ -64,7 +63,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public PostDTO createPost(PostDTORequest postRequest) throws AppCheckedException {
+    public PostDTO createPost(PostDTORequest postRequest) {
         MediaItem[] mediaItems = mediaUploadUtils.uploadValidMedia(postRequest.getMedia());
         try {
             ContentDTO contentDTO = buildContent(postRequest.getHtml(),
@@ -74,15 +73,15 @@ public class PostServiceImpl implements PostService {
             return postMapper.toPostDTO(postRepository.save(post));
         } catch (RuntimeException e) {
             log.error("Không thể thêm bài post vào database: {}", e.getMessage(), e);
-            throw new AppCheckedException("Không thể thêm bài post vào database", StatusCode.CREATE_POST_FAILED);
+            throw new AppException("Không thể thêm bài post vào database", StatusCode.CREATE_POST_FAILED);
         }
     }
 
     @Override
-    public PostDTO updatePost(PostDTORequest post, String postId) throws AppCheckedException {
+    public PostDTO updatePost(PostDTORequest post, String postId) {
 
         Post existingPost = postRepository.findById(postId)
-                .orElseThrow(() -> new AppCheckedException("Post not found", StatusCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new AppException("Post not found", StatusCode.POST_NOT_FOUND));
         //Nếu tìm thấy thì cập nhật thông tin
 
         existingPost.setContent(Content.builder()
@@ -177,16 +176,7 @@ public class PostServiceImpl implements PostService {
     /** Bỏ qua nếu tự thao tác trên bài viết của chính mình */
     private void notifyOwner(String ownerId, String actorId, NotificationType type) {
         if (ownerId == null || ownerId.equals(actorId)) return;
-        ActorSnapshotDTO actor = accountService.getOwner(actorId);
-        notificationEvent.publishCreateNotification(new NotificationDTO(
-                ownerId,
-                ActorSnapshot.builder()
-                        .userId(actor.getUserId())
-                        .displayName(actor.getDisplayName())
-                        .avatar(actor.getAvatar())
-                        .build(),
-                type
-        ));
+        notificationEvent.publishCreateNotification(new NotificationDTO(ownerId, actorId, type));
     }
 
     private ContentDTO buildContent(String html, String text, MediaItem[] media) {
@@ -225,13 +215,13 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public List<Post> getPostsByUser(String userId, String requesterId) {
-        Relationship relationship = relationshipRepository.findByUserId(userId).orElse(null);
+        Account owner = accountRepository.findById(userId).orElse(null);
 
-        if (relationship == null || Boolean.TRUE.equals(relationship.getIsPublic())) {
+        if (owner == null || Boolean.TRUE.equals(owner.getIsPublic())) {
             return postRepository.findByOwnerUserId(userId);
         }
 
-        if (relationship.getListFollower().contains(requesterId)) {
+        if (owner.getFollower().contains(requesterId)) {
             return postRepository.findByOwnerUserId(userId);
         }
 
@@ -288,17 +278,29 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<PostResponse> findByText(String text, String userId) {
-        List<Post> posts = postRepository.findByContentTextContainingIgnoreCase(text);
-        return toPostResponses(posts, userId);
+    public SearchPageResponse<PostResponse> findByText(String text, String userId, int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(50, Math.max(1, size));
+        String trimmedText = text == null ? "" : text.trim();
+
+        if (trimmedText.isBlank()) {
+            return new SearchPageResponse<>(List.of(), safePage, safeSize, false);
+        }
+
+        Pageable pageable = PageRequest.of(safePage, safeSize + 1);
+        List<Post> posts = postRepository.findByContentTextContainingIgnoreCase(trimmedText, pageable);
+        boolean hasMore = posts.size() > safeSize;
+        List<PostResponse> items = toPostResponses(posts.stream().limit(safeSize).toList(), userId);
+
+        return new SearchPageResponse<>(items, safePage, safeSize, hasMore);
     }
 
     @Override
-    public PostResponse getPostById(String postId, String userId) throws AppCheckedException {
+    public PostResponse getPostById(String postId, String userId) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppCheckedException("Không tìm thấy thông tin bài viết", StatusCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy thông tin bài viết", StatusCode.POST_NOT_FOUND));
         Account owner = accountRepository.findById(post.getOwner().getUserId())
-                .orElseThrow(() -> new AppCheckedException("Không tìm thấy chủ bài viết", StatusCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy chủ bài viết", StatusCode.POST_NOT_FOUND));
         Integer commentCount = commentRepository.countByPostId(post.getId());
         return buildPostResponse(post, owner, commentCount == null ? 0 : commentCount, userId);
     }
@@ -307,9 +309,9 @@ public class PostServiceImpl implements PostService {
     public List<PostResponse> getPostByFollowing(String userId) {
         Pageable pageable = PageRequest.of(0, 10);
 
-        Relationship relationship = relationshipRepository.findByUserId(userId).orElse(null);
-        List<String> followingIds = relationship != null
-                ? new ArrayList<>(relationship.getListFollowing())
+        Account account = accountRepository.findById(userId).orElse(null);
+        List<String> followingIds = account != null
+                ? new ArrayList<>(account.getFollowing())
                 : List.of();
         if (followingIds.isEmpty()) {
             return List.of();

@@ -41,34 +41,15 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
-    @ExceptionHandler(value = AccountException.class)
-    ResponseEntity<ApiResponse<Void>> handleAccountException(AccountException exception) {
-        var code = exception.getCode();
+    @ExceptionHandler(value = AppException.class)
+    ResponseEntity<ApiResponse<Void>> handleAppException(AppException exception) {
+        var code = exception.getErrorCode();
         return ResponseEntity.status(code.getHttpStatusCode())
                 .body(ApiResponse.<Void>builder()
                         .statusCode(code.getCode())
-                        .message(code.getMessage())
+                        .message(exception.getMessage())
                         .dateTime(LocalDateTime.now())
                         .build());
-    }
-
-    @ExceptionHandler(value = AccountCheckedException.class)
-    ResponseEntity<ApiResponse<Void>> handleAccountCheckedException(AccountCheckedException exception) {
-        var code = exception.getStatus();
-        return ResponseEntity.status(code.getHttpStatusCode())
-                .body(ApiResponse.<Void>builder()
-                        .statusCode(code.getCode())
-                        .message(code.getMessage())
-                        .dateTime(LocalDateTime.now())
-                        .build());
-    }
-
-    @ExceptionHandler(value = AppCheckedException.class)
-    ResponseEntity<ApiResponse<Void>> handlingAppCheckedException(AppCheckedException exception) {
-        return ResponseEntity.badRequest().body(ApiResponse.<Void>builder()
-                .statusCode(exception.getStatus().getCode())
-                .message(exception.getMessage()).dateTime(LocalDateTime.now())
-                .build());
     }
 
     @ExceptionHandler(value = MaxUploadSizeExceededException.class)
@@ -117,19 +98,4 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
-    @ExceptionHandler(value = AppUnCheckedException.class)
-    ResponseEntity<ApiResponse<Void>> handleAppException(AppUnCheckedException exception) {
-        StatusCode code = exception.getStatus();
-        if (code == null) throw new IllegalArgumentException("Đối tượng không được rỗng.");
-        return buildResponse(code);
-    }
-
-    private ResponseEntity<ApiResponse<Void>> buildResponse(StatusCode errorCode) {
-        return ResponseEntity.status(errorCode.getCode())
-                .body(ApiResponse.<Void>builder()
-                        .statusCode(errorCode.getCode())
-                        .message(errorCode.getMessage())
-                        .dateTime(LocalDateTime.now())
-                        .build());
-    }
 }

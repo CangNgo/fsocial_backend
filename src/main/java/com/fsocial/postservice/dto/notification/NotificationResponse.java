@@ -1,24 +1,14 @@
 package com.fsocial.postservice.dto.notification;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fsocial.postservice.entity.ActorSnapshot;
-import com.fsocial.postservice.entity.EntityRef;
+import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.enums.NotificationType;
-import com.fsocial.postservice.enums.PaymentStatus;
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -29,12 +19,21 @@ import java.util.Map;
 public class NotificationResponse {
     private String id;
     private String recipientId;
-    private ActorSnapshot actor;
+    /** Raw reference field từ entity — dùng để enrich sang {@code actor} lúc đọc, không trả ra ngoài */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private String senderId;
     private NotificationType type;
     private String groupKey;
-    private List<ActorSnapshot> aggregatedActors = new ArrayList<>();
+    /** Raw reference field từ entity — dùng để enrich sang {@code aggregatedActors} lúc đọc */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<String> aggregatedSenderIds = new ArrayList<>();
     private String title;
     private String body;
     private boolean isRead;
     private Instant createdAt;
+
+    /** Enriched từ senderId bằng cách lookup Account, gán ở service layer */
+    private ActorSnapshotDTO actor;
+    /** Enriched từ aggregatedSenderIds bằng cách lookup Account, gán ở service layer */
+    private List<ActorSnapshotDTO> aggregatedActors = new ArrayList<>();
 }

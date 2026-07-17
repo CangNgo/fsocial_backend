@@ -42,7 +42,6 @@ public class FeedServiceImpl implements FeedService {
     private final SeenPostRepository seenPostRepository;
     private final AccountRepository accountRepository;
     private final CommentRepository commentRepository;
-    private final RelationshipRepository relationshipRepository;
     private final TagCooccurrenceRepository tagCooccurrenceRepository;
     private final InterestGraphService interestGraphService;
     private final ScoringService scoringService;
@@ -250,8 +249,8 @@ public class FeedServiceImpl implements FeedService {
     }
 
     private Set<String> getFollowingIds(String userId) {
-        return relationshipRepository.findByUserId(userId)
-                .map(Relationship::getListFollowing)
+        return accountRepository.findById(userId)
+                .map(Account::getFollowing)
                 .orElse(Collections.emptySet());
     }
 

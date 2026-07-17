@@ -8,7 +8,6 @@ import com.fsocial.postservice.dto.request.AccountRegisterRequest;
 import com.fsocial.postservice.dto.response.AuthenticationResponse;
 import com.fsocial.postservice.dto.response.IntrospectResponse;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Role;
 import com.fsocial.postservice.entity.Token;
 import com.fsocial.postservice.enums.AccountErrorCode;
@@ -51,15 +50,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     NotificationEvent notificationEvent;
 
     @Override
-    public AuthenticationResponse login(AccountLoginRequest request, String userAgent, HttpServletRequest httpRequest) throws AccountCheckedException {
+    public AuthenticationResponse login(AccountLoginRequest request, String userAgent, HttpServletRequest httpRequest) {
         Account account = accountRepository.findByUsernameOrEmail(request.getUsername(), request.getUsername())
                 .filter(acc -> acc.getPassword() != null && passwordEncoder.matches(request.getPassword(), acc.getPassword()))
                 .orElseThrow(() -> {
                     log.warn("Sai tên tài khoản hoặc mật khẩu: {}", request.getUsername());
-                    return new AccountException(AccountErrorCode.LOGIN_FAILED);
+                    return new AppException(AccountErrorCode.LOGIN_FAILED);
                 });
 
-        if (!account.isStatus()) throw new AccountCheckedException(AccountErrorCode.ACCOUNT_BANNED);
+        if (!account.isStatus()) throw new AppException(AccountErrorCode.ACCOUNT_BANNED);
 
        return saveToken(account, userAgent, httpRequest);
     }
@@ -90,11 +89,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         notificationEvent.publishCreateNotification(new NotificationDTO(
                 account.getId(),
-                ActorSnapshot.builder()
-                        .userId(account.getId())
-                        .displayName(account.getDisplayName())
-                        .avatar(account.getAvatar())
-                        .build(),
+                account.getId(),
                 NotificationType.LOGIN
         ));
 
@@ -123,7 +118,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         if(account.isEmpty()){
 
-            Role role = roleRepository.findByName("USER").orElseThrow(() -> new AppUnCheckedException(StatusCode.ROLE_NOT_FOUND));
+            Role role = roleRepository.findByName("USER").orElseThrow(() -> new AppException(StatusCode.ROLE_NOT_FOUND));
 
             String seed = googleUserInfo.email();
             Account accountRegister = accountRepository.save(Account.builder()
@@ -137,12 +132,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                             .avatar(googleUserInfo.picture())
                             .background(defaultMediaProvider.pickBackground(seed))
                             .address(googleUserInfo.locale())
+                            .status(true)
                             .googleId(googleUserInfo.googleId())
                     .build());
 
             return this.saveToken(accountRegister, userAgent, httpRequest);
         }else {
-            return this.saveToken(account.get(), userAgent, httpRequest);
+            Account existingAccount = account.get();
+            if (!existingAccount.isStatus()) throw new AppException(AccountErrorCode.ACCOUNT_BANNED);
+            return this.saveToken(existingAccount, userAgent, httpRequest);
         }
     }
 

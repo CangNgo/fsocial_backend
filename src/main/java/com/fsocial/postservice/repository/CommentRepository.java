@@ -4,7 +4,6 @@ import com.fsocial.postservice.entity.Comment;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
-import org.springframework.data.mongodb.repository.Update;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -26,8 +25,12 @@ public interface CommentRepository extends MongoRepository<Comment, String> {
             "{'$project': {'totalLikes': {'$size': '$likes'}}}"
     })
     Integer countLikes(String commentId);
+
     boolean existsByIdAndLikes(String id, String userId);
+
     boolean existsById(String id);
+
+    Optional<Comment> findByRepliesId(String replyId);
 
     @Query(value = "{ '_id': ?0 }", fields = "{ 'postId': 1 }")
     Optional<String> findPostIdById(String commentId);

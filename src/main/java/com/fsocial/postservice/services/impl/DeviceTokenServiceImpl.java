@@ -1,7 +1,6 @@
 package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.entity.DeviceToken;
-import com.fsocial.postservice.exception.AppUnCheckedException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.repository.DeviceTokenRepository;
 import com.fsocial.postservice.services.DeviceTokenService;

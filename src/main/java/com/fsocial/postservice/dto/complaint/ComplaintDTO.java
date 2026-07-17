@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ComplaintDTO {
-    @NotBlank(message = "postId không được để trống")
-    String postId;
+    @NotBlank(message = "targetId không được để trống")
+    String targetId;
     @NotNull(message = "complaintType không được để trống")
     ComplaintType complaintType;
     @NotBlank(message = "termOfServiceId không được để trống")

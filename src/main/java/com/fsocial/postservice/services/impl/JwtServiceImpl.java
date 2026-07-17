@@ -2,7 +2,7 @@ package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.enums.AccountErrorCode;
-import com.fsocial.postservice.exception.AccountException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.repository.AccountRepository;
 import com.fsocial.postservice.services.JwtService;
 import com.nimbusds.jose.*;
@@ -44,7 +44,7 @@ public class JwtServiceImpl implements JwtService {
     @Override
     public String generateToken(String username) {
         Account account = accountRepository.findByUsername(username)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         JWTClaimsSet claimsSet = buildClaimsSet(account);
         return signToken(claimsSet);
@@ -58,13 +58,13 @@ public class JwtServiceImpl implements JwtService {
             return signedJWT.verify(verifier) && !isTokenExpired(signedJWT);
         } catch (JOSEException | ParseException e) {
             log.error("Có lỗi trong quá trình phân tích Token.");
-            throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
     @Override
     public byte[] getSignerKey() {
-        if (signerKey == null || signerKey.isEmpty()) throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+        if (signerKey == null || signerKey.isEmpty()) throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         return signerKey.getBytes();
     }
 
@@ -75,7 +75,7 @@ public class JwtServiceImpl implements JwtService {
             return signedJWT.getJWTClaimsSet().getSubject();
         } catch (ParseException e) {
             log.error("Không thể lấy userId từ token: {}", e.getMessage());
-            throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -112,12 +112,12 @@ public class JwtServiceImpl implements JwtService {
                     new Payload(claimsSet.toJSONObject())
             );
             byte[] key = getSignerKey();
-            if (key.length < 32) throw new AccountException(AccountErrorCode.WEAK_SECRET_KEY);
+            if (key.length < 32) throw new AppException(AccountErrorCode.WEAK_SECRET_KEY);
             jwsObject.sign(new MACSigner(key));
             return jwsObject.serialize();
         } catch (JOSEException e) {
             log.error("Không tạo được token: {}", e.getMessage(), e);
-            throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 

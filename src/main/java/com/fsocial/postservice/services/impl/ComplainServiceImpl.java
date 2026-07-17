@@ -1,15 +1,14 @@
 package com.fsocial.postservice.services.impl;//package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.complaint.ComplaintDTO;
 import com.fsocial.postservice.dto.complaint.ComplaintDTOResponse;
 import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.dto.response.AccountResponse;
-import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Complaint;
+import com.fsocial.postservice.entity.ComplaintDetail;
 import com.fsocial.postservice.entity.TermOfServices;
 import com.fsocial.postservice.enums.NotificationType;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.ComplantMapper;
 import com.fsocial.postservice.publisher.NotificationEvent;
@@ -50,56 +49,68 @@ public class ComplainServiceImpl implements ComplaintService {
     NotificationEvent notificationEvent;
 
     @Override
-    public ComplaintDTO addComplaint(ComplaintDTO complaintDTO,String userId) throws AppCheckedException {
-        Complaint complaint = complantMapper.toComplaint(complaintDTO);
+    public ComplaintDTOResponse addComplaint(ComplaintDTO complaintDTO, String userId) {
+        ComplaintDetail detail = ComplaintDetail.builder()
+                .userId(userId)
+                .termOfServiceId(complaintDTO.getTermOfServiceId())
+                .createDatetime(LocalDateTime.now())
+                .build();
 
-        complaint.setUserId(userId);
+        Complaint complaint = complaintRepository
+                .findByTargetIdAndComplaintType(complaintDTO.getTargetId(), complaintDTO.getComplaintType())
+                .orElseGet(() -> Complaint.builder()
+                        .targetId(complaintDTO.getTargetId())
+                        .complaintType(complaintDTO.getComplaintType())
+                        .build());
+
+        complaint.getDetails().add(detail);
 
         Complaint res = complaintRepository.save(complaint);
 
-        ActorSnapshotDTO reporter = accountService.getOwner(userId);
         notificationEvent.publishCreateNotification(new NotificationDTO(
                 userId,
-                ActorSnapshot.builder()
-                        .userId(reporter.getUserId())
-                        .displayName(reporter.getDisplayName())
-                        .avatar(reporter.getAvatar())
-                        .build(),
+                userId,
                 NotificationType.REPORT
         ));
 
-        return complantMapper.toComplaintDTO(res);
+        return ComplaintDTOResponse.builder()
+                .id(res.getId())
+                .targetId(res.getTargetId())
+                .complaintType(res.getComplaintType())
+                .isRead(res.isRead())
+                .reportCount(res.getDetails().size())
+                .build();
     }
 
     @Override
-    public ComplaintDTO readComplaint(String complaintId) throws AppCheckedException {
+    public ComplaintDTO readComplaint(String complaintId) {
         Complaint complaint = complaintRepository.findById(complaintId)
-                .orElseThrow(() -> new AppCheckedException("Không tìm thấy khiếu nại", StatusCode.COMPLAIN_NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy khiếu nại", StatusCode.COMPLAIN_NOT_FOUND));
         complaint.setRead(true);
 
-        return complantMapper.toComplaintDTO(complaintRepository.save(complaint));
+        complaintRepository.save(complaint);
+
+        return ComplaintDTO.builder()
+                .targetId(complaint.getTargetId())
+                .complaintType(complaint.getComplaintType())
+                .build();
     }
 
     // Methods from timelineService
     @Override
     public List<com.fsocial.postservice.dto.complaint.ComplaintDTOResponse> getComplaints() {
         return complaintRepository.findAll().stream()
-                .map(complaint -> {
-                    try {
-                        return mapToComplainResponse(complaint);
-                    } catch (AppCheckedException e) {
-                        throw new RuntimeException(e.getMessage());
-                    }
-                })
+                .flatMap(complaint -> complaint.getDetails().stream()
+                        .map(detail -> mapToComplainResponse(complaint, detail)))
                 .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
-    public com.fsocial.postservice.dto.complaint.ComplaintDTOResponse getComplaintById(String complaintId)
-            throws AppCheckedException {
+    public com.fsocial.postservice.dto.complaint.ComplaintDTOResponse getComplaintById(String complaintId) {
         Complaint complaint = complaintRepository.findById(complaintId)
-                .orElseThrow(() -> new AppCheckedException("Không tìm thấy báo cáo", StatusCode.COMPLAIN_NOT_FOUND));
-        return mapToComplainResponse(complaint);
+                .orElseThrow(() -> new AppException("Không tìm thấy báo cáo", StatusCode.COMPLAIN_NOT_FOUND));
+        ComplaintDetail detail = complaint.getDetails().isEmpty() ? null : complaint.getDetails().get(0);
+        return mapToComplainResponse(complaint, detail);
     }
 
     @Override
@@ -154,29 +165,34 @@ public class ComplainServiceImpl implements ComplaintService {
         return result;
     }
 
-    private ComplaintDTOResponse mapToComplainResponse(Complaint complaint)
-            throws AppCheckedException {
-        AccountResponse profileResponse = getProfile(complaint.getUserId());
-        TermOfServices term = termRepository.findById(complaint.getTermOfServiceId()).orElseThrow(
-                () -> new AppCheckedException("Không tìm thấy chính sách", StatusCode.TERM_OF_SERVICE_NOT_FOUND));
+    private ComplaintDTOResponse mapToComplainResponse(Complaint complaint, ComplaintDetail detail) {
+        String reportedByUserId = detail != null ? detail.getUserId() : null;
+        AccountResponse profileResponse = getProfile(reportedByUserId);
+        String termName = null;
+        if (detail != null && detail.getTermOfServiceId() != null) {
+            TermOfServices term = termRepository.findById(detail.getTermOfServiceId()).orElseThrow(
+                    () -> new AppException("Không tìm thấy chính sách", StatusCode.TERM_OF_SERVICE_NOT_FOUND));
+            termName = term.getName();
+        }
         return ComplaintDTOResponse.builder()
                 .id(complaint.getId())
-                .postId(complaint.getPostId())
+                .targetId(complaint.getTargetId())
                 .profileId(profileResponse.getId())
                 .complaintType(complaint.getComplaintType())
                 .isRead(complaint.isRead())
-                .termOfService(term.getName())
-                .createDatetime(complaint.getCreateDatetime())
+                .termOfService(termName)
+                .createDatetime(detail != null ? detail.getCreateDatetime() : null)
                 .displayName(profileResponse.getDisplayName())
-                .userId(complaint.getUserId())
+                .userId(reportedByUserId)
+                .reportCount(complaint.getDetails().size())
                 .build();
     }
 
-    public AccountResponse getProfile(String userId) throws AppCheckedException {
+    public AccountResponse getProfile(String userId) {
         try {
             return accountService.getProfile(userId);
         } catch (Exception e) {
-            throw new AppCheckedException("Không tìm thấy thông tin người dùng: " + userId, StatusCode.USER_NOT_FOUND);
+            throw new AppException("Không tìm thấy thông tin người dùng: " + userId, StatusCode.USER_NOT_FOUND);
         }
     }
 }

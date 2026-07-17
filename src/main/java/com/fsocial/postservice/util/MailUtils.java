@@ -3,8 +3,7 @@ package com.fsocial.postservice.util;
 import com.fsocial.postservice.dto.response.MailInformation;
 import com.fsocial.postservice.enums.AccountErrorCode;
 import com.fsocial.postservice.enums.MailTemplate;
-import com.fsocial.postservice.exception.AccountException;
-import com.fsocial.postservice.exception.AppUnCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.resend.Resend;
 import com.resend.core.exception.ResendException;
@@ -46,7 +45,7 @@ public class MailUtils {
             javaMailSender.send(mimeMessage);
         } catch (MessagingException e) {
             log.error("Có lỗi xảy ra khi gửi mail: {}", e.getMessage());
-            throw new AccountException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
+            throw new AppException(AccountErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -70,7 +69,7 @@ public class MailUtils {
             CreateEmailResponse response  = resend.emails().send(emailOptions);
             System.out.println("Send mail successfull: " +  response.getId());
         }catch (ResendException e ){
-            throw  new AppUnCheckedException(e.getMessage(),StatusCode.SEND_MAIL_FAIL);
+            throw  new AppException(e.getMessage(),StatusCode.SEND_MAIL_FAIL);
         }
 
     }

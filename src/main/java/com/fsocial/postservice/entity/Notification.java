@@ -37,8 +37,9 @@ public class Notification {
     @Field("recipient_id")
     private String recipientId;
 
-    /** Snapshot actor — denormalize để đọc không phải lookup user collection */
-    private ActorSnapshot actor;
+    /** Reference — lookup Account theo id này khi đọc để lấy displayName/avatar */
+    @Field("sender_id")
+    private String senderId;
 
     private NotificationType type;
 
@@ -48,10 +49,10 @@ public class Notification {
     @Field("group_key")
     private String groupKey;
 
-    /** Khi gom nhóm: list actor gần nhất (giới hạn ~5 người) */
-    @Field("aggregated_actors")
+    /** Khi gom nhóm: list senderId gần nhất (giới hạn ~5 người) */
+    @Field("aggregated_sender_ids")
     @Builder.Default
-    private List<ActorSnapshot> aggregatedActors = new ArrayList<>();
+    private List<String> aggregatedSenderIds = new ArrayList<>();
 
     private String title;
     private String body;

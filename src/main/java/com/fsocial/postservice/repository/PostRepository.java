@@ -25,6 +25,7 @@ public interface PostRepository extends MongoRepository<Post, String> {
     List<Post> findByOwnerUserId(String userId);
 
     List<Post> findByContentTextContainingIgnoreCase(String content);
+    List<Post> findByContentTextContainingIgnoreCase(String content, Pageable pageable);
     List<Post> findByIdNotInOrderByCreateDatetimeDesc(List<String> postIdViewed, Pageable pageable);
 
     @Query(value = "{ 'owner.user_id': { $in: ?0 }, '_id': { $nin: ?1 } }", sort = "{ 'created_datetime': -1 }")

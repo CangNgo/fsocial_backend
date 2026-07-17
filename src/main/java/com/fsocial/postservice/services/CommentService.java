@@ -5,19 +5,18 @@ import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.entity.Comment;
-import com.fsocial.postservice.exception.AppCheckedException;
 
 import java.io.IOException;
 import java.util.List;
 
 public interface CommentService{
-    Comment addComment(CommentDTORequest comment) throws AppCheckedException;
+    Comment addComment(CommentDTORequest comment);
 
-    boolean toggleLikeComment(String commentId, String userId) throws AppCheckedException;
+    boolean toggleLikeComment(String commentId, String userId);
 
     Integer countLike(String commentId, String userId);
 
-    Comment updateComment(CommentUpdateDTORequest comment) throws AppCheckedException;
+    Comment updateComment(CommentUpdateDTORequest comment);
 
     String deleteComment(String commentID);
 
@@ -26,5 +25,5 @@ public interface CommentService{
 
     CommentResponse convertToCommentResponse(Comment comment);
 
-    List<CommentDTO> deleteCommentByPostId(String postId) throws AppCheckedException;
+    List<CommentDTO> deleteCommentByPostId(String postId);
 }

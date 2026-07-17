@@ -2,7 +2,6 @@ package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.termOfService.TermOfServiceDTO;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.TermOfServicesService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,7 @@ public class TermOfServiceController {
     }
 
     @PutMapping
-    public ApiResponse<TermOfServiceDTO> updateTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) throws AppCheckedException {
+    public ApiResponse<TermOfServiceDTO> updateTermOfSerivce(@RequestBody TermOfServiceDTO termOfServiceDTO) {
         TermOfServiceDTO termOfService = termOfServicesService.updateTermOfService(termOfServiceDTO);
         return ApiResponse.<TermOfServiceDTO>builder()
                 .message("Cập nhật chính sách thành công")
@@ -38,7 +37,7 @@ public class TermOfServiceController {
     }
 
     @DeleteMapping
-    public ApiResponse<String> deleteTermOfSerivce(@RequestParam("term_id") String termId) throws AppCheckedException {
+    public ApiResponse<String> deleteTermOfSerivce(@RequestParam("term_id") String termId) {
 
         return ApiResponse.<String>builder()
                 .message("Xóa chính sách thành công")

@@ -2,6 +2,7 @@ package com.fsocial.postservice.repository;
 
 import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.entity.Account;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -40,4 +41,7 @@ public interface AccountRepository extends MongoRepository<Account, String> {
             "{'$match':  {'_id':  ?0}}"
     })
     Optional<ActorSnapshotDTO> findOwnerById(String userId);
+
+    @Query(value = "{ '$or': [ { 'displayName': { '$regex': ?0, '$options': 'i' } }, { 'firstName': { '$regex': ?0, '$options': 'i' } }, { 'lastName': { '$regex': ?0, '$options': 'i' } }, { 'email': { '$regex': ?0, '$options': 'i' } } ] }")
+    List<Account> searchByKeyword(String keyword, Pageable pageable);
 }

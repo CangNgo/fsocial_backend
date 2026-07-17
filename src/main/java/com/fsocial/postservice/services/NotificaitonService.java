@@ -11,4 +11,5 @@ public interface NotificaitonService {
     void notifcationCreateConsumer (NotificationDTO dto) ;
     NotificationCursorResponse getNotifications(String userId, String cursor);
     long getCountNotificationByRecipientId(String recipient);
+    NotificationResponse readNotification(String notificationId);
 }

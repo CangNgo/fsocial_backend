@@ -1,19 +1,17 @@
 package com.fsocial.postservice.services.impl;
 
-import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.comment.CommentDTO;
 import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.dto.notification.NotificationDTO;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.ActorSnapshot;
 import com.fsocial.postservice.entity.Comment;
 import com.fsocial.postservice.entity.Content;
 import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.enums.NotificationType;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.publisher.InteractionEventPublisher;
 import com.fsocial.postservice.publisher.NotificationEvent;
@@ -63,12 +61,12 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public Comment addComment(CommentDTORequest request) throws AppCheckedException {
+    public Comment addComment(CommentDTORequest request) {
         MediaItem[] mediaUrls = mediaUploadUtils.uploadValidMedia(request.getMedia());
 
         String postId = request.getPostId();
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppCheckedException("Không tìm thấy bài đăng", StatusCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new AppException("Không tìm thấy bài đăng", StatusCode.POST_NOT_FOUND));
 
         Comment commentRequest = buildComment(request, mediaUrls);
         commentRequest.setCreatedAt(LocalDateTime.now());
@@ -89,16 +87,7 @@ public class CommentServiceImpl implements CommentService {
     /** Bỏ qua nếu tự bình luận trên bài viết của chính mình */
     private void notifyOwner(String ownerId, String actorId, NotificationType type) {
         if (ownerId == null || ownerId.equals(actorId)) return;
-        ActorSnapshotDTO actor = accountService.getOwner(actorId);
-        notificationEvent.publishCreateNotification(new NotificationDTO(
-                ownerId,
-                ActorSnapshot.builder()
-                        .userId(actor.getUserId())
-                        .displayName(actor.getDisplayName())
-                        .avatar(actor.getAvatar())
-                        .build(),
-                type
-        ));
+        notificationEvent.publishCreateNotification(new NotificationDTO(ownerId, actorId, type));
     }
 
     private Comment buildComment(CommentDTORequest request, MediaItem[] mediaUrls) {
@@ -116,7 +105,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public boolean toggleLikeComment(String commentId, String userId) throws AppCheckedException {
+    public boolean toggleLikeComment(String commentId, String userId) {
         boolean existed = commentRepository.existsByIdAndLikes(commentId, userId);
         if (!existed) {
             this.addLikeComment(commentId, userId);
@@ -134,11 +123,11 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public Comment updateComment(CommentUpdateDTORequest comment) throws AppCheckedException {
+    public Comment updateComment(CommentUpdateDTORequest comment) {
         if (userExists(comment.getUserId()))
-            throw new AppCheckedException("User không tồn tại", StatusCode.USER_NOT_FOUND);
+            throw new AppException("User không tồn tại", StatusCode.USER_NOT_FOUND);
 
-        Comment update = commentRepository.findById(comment.getCommentId()).orElseThrow(() -> new AppCheckedException("Không tìm thấy comment", StatusCode.COMMENT_NOT_FOUND));
+        Comment update = commentRepository.findById(comment.getCommentId()).orElseThrow(() -> new AppException("Không tìm thấy comment", StatusCode.COMMENT_NOT_FOUND));
         //cập nhật text
         update.setContent(Content.builder()
                         .html(comment.getHtml())
@@ -159,12 +148,12 @@ public class CommentServiceImpl implements CommentService {
         return "Xóa comment thành công";
     }
 
-    public void addLikeComment(String commentId, String userId) throws AppCheckedException {
+    public void addLikeComment(String commentId, String userId) {
         boolean check = this.userExists(userId);
         if (!this.commentExist(commentId))
-            throw new AppCheckedException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
+            throw new AppException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
         if (!this.userExists(userId))
-            throw new AppCheckedException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
+            throw new AppException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
 
         Query query = new Query(Criteria.where("_id").is(commentId));
         Update update = new Update().addToSet("likes", userId);
@@ -172,11 +161,11 @@ public class CommentServiceImpl implements CommentService {
 
     }
 
-    public void removeLikeComment(String commentId, String userId) throws AppCheckedException {
+    public void removeLikeComment(String commentId, String userId) {
         if (!this.commentExist(commentId))
-            throw new AppCheckedException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
+            throw new AppException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
         if (!this.userExists(userId))
-            throw new AppCheckedException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
+            throw new AppException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
 
         Query query = new Query(Criteria.where("_id").is(commentId));
         Update update = new Update().pull("likes", userId);
@@ -207,7 +196,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<CommentDTO> deleteCommentByPostId(String postId) throws AppCheckedException {
+    public List<CommentDTO> deleteCommentByPostId(String postId) {
         commentRepository.deleteAll(commentRepository.findByPostId(postId));
         return List.of();
     }

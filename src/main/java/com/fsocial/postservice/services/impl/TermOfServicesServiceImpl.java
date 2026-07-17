@@ -2,7 +2,7 @@ package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.dto.termOfService.TermOfServiceDTO;
 import com.fsocial.postservice.entity.TermOfServices;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.TermOfServiceMapper;
 import com.fsocial.postservice.repository.TermRepository;
@@ -36,9 +36,9 @@ public class TermOfServicesServiceImpl implements TermOfServicesService {
     }
 
     @Override
-    public TermOfServiceDTO updateTermOfService(TermOfServiceDTO termOfService) throws AppCheckedException {
+    public TermOfServiceDTO updateTermOfService(TermOfServiceDTO termOfService) {
 
-        TermOfServices findById = termRepository.findById(termOfService.getId()).orElseThrow(() -> new AppCheckedException("Không tìm thấy chính sách", StatusCode.TERM_OF_SERVICE_NOT_FOUND));
+        TermOfServices findById = termRepository.findById(termOfService.getId()).orElseThrow(() -> new AppException("Không tìm thấy chính sách", StatusCode.TERM_OF_SERVICE_NOT_FOUND));
 
         findById.setName(termOfService.getName());
 
@@ -46,7 +46,7 @@ public class TermOfServicesServiceImpl implements TermOfServicesService {
     }
 
     @Override
-    public String deleteTermOfService(String termOfServiceId) throws AppCheckedException {
+    public String deleteTermOfService(String termOfServiceId) {
          termRepository.deleteById(termOfServiceId);
         return "Xóa chính sách thành công";
     }

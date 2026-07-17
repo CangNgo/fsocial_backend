@@ -5,7 +5,7 @@ import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
 import com.fsocial.postservice.entity.MediaItem;
-import com.fsocial.postservice.exception.AppCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.AttachmentsService;
 import com.fsocial.postservice.services.UploadMedia;
@@ -54,9 +54,9 @@ public class UploadMediaImpl implements UploadMedia {
     private static final String HEIGHT_KEY = "height";
 
     @Override
-    public MediaItem[] uploadMedia(MultipartFile[] files) throws AppCheckedException {
+    public MediaItem[] uploadMedia(MultipartFile[] files) {
         if (files == null || files.length == 0) {
-            throw new AppCheckedException("No files provided", StatusCode.FILE_NOT_FOUND);
+            throw new AppException("No files provided", StatusCode.FILE_NOT_FOUND);
         }
         validateAllBeforeUpload(files);
         String userId = currentUserId();
@@ -72,9 +72,9 @@ public class UploadMediaImpl implements UploadMedia {
             try {
                 mediaItems[i] = uploadOne(currentFile, userId);
                 successCount++;
-            } catch (AppCheckedException e) {
+            } catch (AppException e) {
                 mediaItems[i] = null;
-                if (e.getStatus() == StatusCode.FILE_TOO_LARGE) {
+                if (e.getErrorCode() == StatusCode.FILE_TOO_LARGE) {
                     hasOversizeFailure = true;
                 }
                 log.warn("Upload file thất bại tại index {} cho file {}: {}", i, safeFileName(currentFile), e.getMessage());
@@ -82,7 +82,7 @@ public class UploadMediaImpl implements UploadMedia {
         }
 
         if (successCount == 0) {
-            throw new AppCheckedException(hasOversizeFailure
+            throw new AppException(hasOversizeFailure
                     ? "Tất cả tệp đều vượt quá giới hạn 10MB. Vui lòng chọn tệp tin nhỏ hơn."
                     : ALL_UPLOAD_FAILED_MESSAGE,
                     hasOversizeFailure ? StatusCode.FILE_TOO_LARGE : StatusCode.UPLOAD_MEDIA_FAILED);
@@ -98,14 +98,14 @@ public class UploadMediaImpl implements UploadMedia {
     }
 
     @Override
-    public MediaItem uploadSingleMedia(MultipartFile file) throws AppCheckedException {
+    public MediaItem uploadSingleMedia(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new AppCheckedException("No file provided", StatusCode.FILE_NOT_FOUND);
+            throw new AppException("No file provided", StatusCode.FILE_NOT_FOUND);
         }
         return uploadOne(file, currentUserId());
     }
 
-    private MediaItem uploadOne(MultipartFile file, String userId) throws AppCheckedException {
+    private MediaItem uploadOne(MultipartFile file, String userId) {
         File tempFile = null;
         try {
             validateFileSize(file);
@@ -142,14 +142,14 @@ public class UploadMediaImpl implements UploadMedia {
                     .width(rawWidth != null ? Integer.parseInt(rawWidth.toString()) : null)
                     .height(rawHeight != null ? Integer.parseInt(rawHeight.toString()) : null)
                     .build();
-        } catch (AppCheckedException e) {
+        } catch (AppException e) {
             throw e;
         } catch (Exception e) {
             log.error("Error uploading file {}: {}", safeFileName(file), e.getMessage(), e);
             if (isFileTooLargeException(e)) {
-                throw new AppCheckedException(buildFileTooLargeMessage(file), StatusCode.FILE_TOO_LARGE);
+                throw new AppException(buildFileTooLargeMessage(file), StatusCode.FILE_TOO_LARGE);
             }
-            throw new AppCheckedException(UPLOAD_ERROR_MESSAGE + ": " + e.getMessage(), StatusCode.INTERNAL_SERVER_ERROR);
+            throw new AppException(UPLOAD_ERROR_MESSAGE + ": " + e.getMessage(), StatusCode.INTERNAL_SERVER_ERROR);
         } finally {
             cleanUpTempFile(tempFile);
         }
@@ -175,18 +175,18 @@ public class UploadMediaImpl implements UploadMedia {
         return ObjectUtils.emptyMap(); // Mặc định nếu không xác định được
     }
 
-    private String determineResourceType(String extension) throws AppCheckedException {
+    private String determineResourceType(String extension) {
         if (Arrays.stream(SUPPORTED_IMAGE_TYPES).anyMatch(extension::equals)) {
             return "image";
         } else if (Arrays.stream(SUPPORTED_VIDEO_TYPES).anyMatch(extension::equals)) {
             return "video";
         }
-        throw new AppCheckedException("Unsupported file type: " + extension, StatusCode.UNSUPPORTED_MEDIA_TYPE);
+        throw new AppException("Unsupported file type: " + extension, StatusCode.UNSUPPORTED_MEDIA_TYPE);
     }
 
     // Fail fast: chặn toàn bộ request trước khi upload file đầu tiên,
     // tránh upload dở dang rồi mới phát hiện file sau vượt giới hạn/sai định dạng.
-    private void validateAllBeforeUpload(MultipartFile[] files) throws AppCheckedException {
+    private void validateAllBeforeUpload(MultipartFile[] files) {
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) {
                 continue;
@@ -197,9 +197,9 @@ public class UploadMediaImpl implements UploadMedia {
         }
     }
 
-    private void validateFileSize(MultipartFile file) throws AppCheckedException {
+    private void validateFileSize(MultipartFile file) {
         if (file.getSize() > MAX_CLOUDINARY_FILE_SIZE) {
-            throw new AppCheckedException(buildFileTooLargeMessage(file), StatusCode.FILE_TOO_LARGE);
+            throw new AppException(buildFileTooLargeMessage(file), StatusCode.FILE_TOO_LARGE);
         }
     }
 
@@ -247,9 +247,9 @@ public class UploadMediaImpl implements UploadMedia {
         return "media_" + UUID.randomUUID().toString() + "_" + fileName;
     }
 
-    private String[] extractFileParts(String originalName) throws AppCheckedException {
+    private String[] extractFileParts(String originalName) {
         if (originalName == null || !originalName.contains(".")) {
-            throw new AppCheckedException("Invalid filename", StatusCode.UNSUPPORTED_MEDIA_TYPE);
+            throw new AppException("Invalid filename", StatusCode.UNSUPPORTED_MEDIA_TYPE);
         }
         int dotIndex = originalName.lastIndexOf('.');
         String name = originalName.substring(0, dotIndex);

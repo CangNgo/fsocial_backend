@@ -3,7 +3,6 @@ package com.fsocial.postservice.controller;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.entity.MediaItem;
 import com.fsocial.postservice.enums.ResponseStatus;
-import com.fsocial.postservice.exception.AppCheckedException;
 import com.fsocial.postservice.services.UploadMedia;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,7 @@ public class FileUploadController {;
     UploadMedia uploadImage;
 
     @PostMapping
-    public ApiResponse<List<MediaItem>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) throws AppCheckedException {
+    public ApiResponse<List<MediaItem>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) {
             MediaItem[] mediaItems = uploadImage.uploadMedia(file);
             log.info("Upload file successfull: {}", (Object) mediaItems);
             return ApiResponse.<List<MediaItem>>builder()
@@ -39,7 +38,7 @@ public class FileUploadController {;
     }
 
     @PostMapping("/messages")
-    public ApiResponse<List<MediaItem>> uploadImageInMessage(@RequestParam MultipartFile[] images) throws AppCheckedException {
+    public ApiResponse<List<MediaItem>> uploadImageInMessage(@RequestParam MultipartFile[] images) {
         MediaItem[] mediaItems = uploadImage.uploadMedia(images);
         return ApiResponse.buildApiResponse(Arrays.asList(mediaItems), ResponseStatus.SUCCESS);
     }

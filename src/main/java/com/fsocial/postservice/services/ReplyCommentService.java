@@ -5,22 +5,21 @@ import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
 import com.fsocial.postservice.entity.ReplyComment;
-import com.fsocial.postservice.exception.AppCheckedException;
 
 import java.io.IOException;
 import java.util.List;
 
 public interface ReplyCommentService {
 
-    ReplyComment addReplyComment(ReplyCommentRequest request) throws AppCheckedException, IOException;
+    ReplyComment addReplyComment(ReplyCommentRequest request) throws IOException;
 
-    ReplyComment updateReplyComment(ReplyCommentUpdateDTORequest request) throws AppCheckedException;
+    ReplyComment updateReplyComment(ReplyCommentUpdateDTORequest request);
 
-    String deleteReplyComment (String replyCommentId) throws AppCheckedException;
+    String deleteReplyComment (String replyCommentId);
 
     // Methods from timelineService
     List<ReplyCommentResponse> getReplyCommentsByCommentId(String commentId);
 
     // Method for like reply comment
-    boolean likeReplyComment(LikeReplyCommentDTO request) throws AppCheckedException;
+    boolean likeReplyComment(LikeReplyCommentDTO request);
 }

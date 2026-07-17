@@ -4,15 +4,19 @@ import com.fsocial.postservice.dto.ActorSnapshotDTO;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.request.AccountRegisterRequest;
 import com.fsocial.postservice.dto.request.DuplicationRequest;
-import com.fsocial.postservice.dto.response.*;
+import com.fsocial.postservice.dto.response.AccountResponse;
+import com.fsocial.postservice.dto.response.AccountStatisticRegisterDTO;
+import com.fsocial.postservice.dto.response.AccountStatisticRegisterLongDateDTO;
+import com.fsocial.postservice.dto.response.DuplicationResponse;
+import com.fsocial.postservice.dto.response.ManageUserResponse;
+import com.fsocial.postservice.dto.response.SearchPageResponse;
 import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.entity.RefreshToken;
 import com.fsocial.postservice.entity.Token;
 import com.fsocial.postservice.enums.AccountErrorCode;
 import com.fsocial.postservice.enums.AccountResponseStatus;
 import com.fsocial.postservice.enums.RedisKeyType;
-import com.fsocial.postservice.exception.AccountException;
-import com.fsocial.postservice.exception.AppUnCheckedException;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.AccountMapper;
 import com.fsocial.postservice.repository.AccountRepository;
@@ -29,6 +33,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +44,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -54,8 +61,10 @@ public class AccountServiceImpl implements AccountService {
     TokenRepository tokenRepository;
     RefreshTokenRepository refreshTokenRepository;
     DefaultMediaProvider defaultMediaProvider;
+    RedisTemplate<String, String> redisTemplate;
 
     static String DEFAULT_ROLE = "USER";
+    private static final int TTL_SECONDS = 600; // time live of Redis in Seconds
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -69,23 +78,14 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public AccountResponse getUser(String id) {
         return accountRepository.findById(id)
-                .map((acc) -> AccountResponse.builder()
-                        .id(acc.getId())
-                        .username(acc.getUsername())
-                        .displayName(DisplayNameUtils.build(acc))
-                        .avatar(acc.getAvatar())
-                        .background(acc.getBackground())
-                        .isKOL(acc.isKOL())
-                        .role(acc.getRole().getName())
-                        .bio(acc.getBio())
-                        .build())
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .map(this::toAccountResponse)
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
     }
 
     @Override
     public void resetPassword(String email, String newPassword) {
         Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         account.setPassword(passwordEncoder.encode(newPassword));
         account.setUpdatedAt(LocalDateTime.now());
@@ -115,10 +115,10 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public void changePassword(String userId, String oldPassword, String newPassword) {
         Account account = accountRepository.findById(userId)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         if (!passwordEncoder.matches(oldPassword, account.getPassword())) {
-            throw new AccountException(AccountErrorCode.WRONG_PASSWORD);
+            throw new AppException(AccountErrorCode.WRONG_PASSWORD);
         }
 
         account.setPassword(passwordEncoder.encode(newPassword));
@@ -175,7 +175,7 @@ public class AccountServiceImpl implements AccountService {
     @Transactional
     public String banUser(String userId) {
         Account banAccount = accountRepository.findById(userId)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         Optional<Token> tokenAccount = tokenRepository.findByAccount(banAccount);
         Optional<RefreshToken> refreshToken = refreshTokenRepository.findFirstByUsernameOrderByExpiryDateDesc(banAccount.getUsername());
@@ -194,17 +194,7 @@ public class AccountServiceImpl implements AccountService {
 
         Optional<Account> account = accountRepository.findById(userId);
         if (account.isPresent()) {
-            Account acc = account.get();
-            return AccountResponse.builder()
-                    .id(acc.getId())
-                    .username(acc.getUsername())
-                    .displayName(DisplayNameUtils.build(acc))
-                    .avatar(acc.getAvatar())
-                    .background(acc.getBackground())
-                    .isKOL(acc.isKOL())
-                    .role(acc.getRole().getName())
-                    .bio(acc.getBio())
-                    .build();
+            return toAccountResponse(account.get());
         }
         throw new UncheckedException(AccountErrorCode.NOT_FOUND.getMessage());
     }
@@ -213,9 +203,127 @@ public class AccountServiceImpl implements AccountService {
     public ActorSnapshotDTO getOwner(String userId) {
         Optional<ActorSnapshotDTO> owner = accountRepository.findOwnerById(userId);
         if (owner.isEmpty()) {
-            throw new AppUnCheckedException(StatusCode.USER_NOT_FOUND);
+            throw new AppException(StatusCode.USER_NOT_FOUND);
         }
         return owner.get();
+    }
+
+    @Override
+    @Transactional
+    public void follow(String userId, String targetId) {
+        updateFollowRelation(userId, targetId, true);
+        log.info("User {} followed user {}", userId, targetId);
+        cacheFollowing(userId, targetId);
+    }
+
+    @Override
+    public void unfollow(String userId, String targetId) {
+        updateFollowRelation(userId, targetId, false);
+        log.info("User {} unfollowed user {}", userId, targetId);
+        removeCacheFollowing(userId, targetId);
+    }
+
+    @Override
+    public boolean isFollowing(String userId, String targetId) {
+        String followingKey = "following:" + targetId;
+        Boolean isMember = redisTemplate.opsForSet().isMember(followingKey, userId);
+        return isMember != null && isMember || getFollowers(targetId).contains(userId);
+    }
+
+    @Override
+    public Set<String> getFollowers(String userId) {
+        return getCachedFollowData("follower:" + userId, userId, true);
+    }
+
+    @Override
+    public Set<String> getFollowing(String userId) {
+        return getCachedFollowData("following:" + userId, userId, false);
+    }
+
+    @Override
+    public List<ManageUserResponse> getAllUsers() {
+        return accountRepository.findAll().stream()
+                .map(account -> ManageUserResponse.builder()
+                        .id(account.getId())
+                        .username(account.getUsername())
+                        .displayName(DisplayNameUtils.build(account))
+                        .email(account.getEmail())
+                        .createdAt(account.getCreatedAt())
+                        .updatedAt(account.getUpdatedAt())
+                        .status(account.isStatus())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public SearchPageResponse<AccountResponse> searchUsers(String keyword, int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(50, Math.max(1, size));
+        String trimmedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (trimmedKeyword.isBlank()) {
+            return new SearchPageResponse<>(List.of(), safePage, safeSize, false);
+        }
+
+        List<Account> accounts = accountRepository.searchByKeyword(
+                trimmedKeyword,
+                PageRequest.of(safePage, safeSize + 1)
+        );
+
+        boolean hasMore = accounts.size() > safeSize;
+        List<AccountResponse> items = accounts.stream()
+                .limit(safeSize)
+                .map(this::toAccountResponse)
+                .toList();
+
+        return new SearchPageResponse<>(items, safePage, safeSize, hasMore);
+    }
+
+    private void updateFollowRelation(String userId, String targetId, boolean isFollow) {
+        Account target = accountRepository.findById(targetId)
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+        Account follower = accountRepository.findById(userId)
+                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+
+        if (isFollow) {
+            target.getFollower().add(userId);
+            follower.getFollowing().add(targetId);
+        } else {
+            target.getFollower().remove(userId);
+            follower.getFollowing().remove(targetId);
+        }
+        accountRepository.save(target);
+        accountRepository.save(follower);
+    }
+
+    private Set<String> getCachedFollowData(String cacheKey, String targetId, boolean isFollower) {
+        Set<String> data = redisTemplate.opsForSet().members(cacheKey);
+        if (data != null && !data.isEmpty()) return data;
+
+        data = fetchFollowDataFromDB(targetId, isFollower);
+        if (!data.isEmpty()) updateRedis(cacheKey, data);
+        return data;
+    }
+
+    private Set<String> fetchFollowDataFromDB(String targetId, boolean isFollower) {
+        Account account = accountRepository.findById(targetId)
+                .orElseThrow(() -> new AppException(StatusCode.USER_NOT_FOUND));
+        return isFollower ? account.getFollower() : account.getFollowing();
+    }
+
+    private void updateRedis(String key, Set<String> data) {
+        redisTemplate.opsForSet().add(key, data.toArray(new String[0]));
+        redisTemplate.expire(key, TTL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private void cacheFollowing(String followerId, String targetId) {
+        String key = "following:" + followerId;
+        redisTemplate.opsForSet().add(key, targetId);
+        redisTemplate.expire(key, TTL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private void removeCacheFollowing(String followerId, String targetId) {
+        redisTemplate.opsForSet().remove("following:" + followerId, targetId);
     }
 
     private Account saveAccount(AccountRegisterRequest request) {
@@ -223,7 +331,7 @@ public class AccountServiceImpl implements AccountService {
         account.setCreatedAt(LocalDateTime.now());
         account.setPassword(passwordEncoder.encode(request.getPassword()));
         account.setRole(roleRepository.findByName(DEFAULT_ROLE)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ROLE_NOT_FOUND)));
+                .orElseThrow(() -> new AppException(AccountErrorCode.ROLE_NOT_FOUND)));
         account.setStatus(true);
 
         String seed = request.getUsername() != null ? request.getUsername() : request.getEmail();
@@ -231,6 +339,27 @@ public class AccountServiceImpl implements AccountService {
         account.setBackground(defaultMediaProvider.pickBackground(seed));
 
         return accountRepository.save(account);
+    }
+
+    private AccountResponse toAccountResponse(Account account) {
+        return AccountResponse.builder()
+                .id(account.getId())
+                .username(account.getUsername())
+                .firstName(account.getFirstName())
+                .lastName(account.getLastName())
+                .email(account.getEmail())
+                .dob(account.getDob() != null ? account.getDob().toString() : null)
+                .gender(account.getGender())
+                .address(account.getAddress())
+                .displayName(DisplayNameUtils.build(account))
+                .avatar(account.getAvatar())
+                .background(account.getBackground())
+                .isKOL(account.isKOL())
+                .role(account.getRole().getName())
+                .bio(account.getBio())
+                .follower(account.getFollower())
+                .following(account.getFollowing())
+                .build();
     }
 
 }
