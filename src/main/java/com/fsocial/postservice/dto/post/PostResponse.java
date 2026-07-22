@@ -25,4 +25,5 @@ public class PostResponse {
     boolean isLike;
     boolean status;
     List<String> tags;
+    PostOriginResponse postOriginResponse;
 }

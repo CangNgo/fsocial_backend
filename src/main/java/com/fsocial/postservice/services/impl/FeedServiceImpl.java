@@ -1,5 +1,6 @@
 package com.fsocial.postservice.services.impl;
 
+import com.fsocial.postservice.dto.post.PostOriginResponse;
 import com.fsocial.postservice.dto.post.PostResponse;
 import com.fsocial.postservice.entity.*;
 import com.fsocial.postservice.repository.*;
@@ -10,6 +11,7 @@ import com.fsocial.postservice.util.DisplayNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -86,9 +88,9 @@ public class FeedServiceImpl implements FeedService {
         candidates = sorted;
 
         // Mark posts as seen
-        candidates.forEach(p -> markSeen(userId, p.getId()));
+        markSeenBatch(userId, candidates.stream().map(Post::getId).toList());
 
-        return toPostResponses(candidates, userId);
+        return toPostResponses(candidates, userId, commentCountMap);
     }
 
     private List<Post> buildCandidatePool(String userId, Map<String, Double> normalizedWeights,
@@ -240,6 +242,26 @@ public class FeedServiceImpl implements FeedService {
         }
     }
 
+    /** Bulk version of {@link #markSeen} — 1 round-trip cho cả batch thay vì N upsert riêng lẻ. */
+    private void markSeenBatch(String userId, List<String> postIds) {
+        if (postIds.isEmpty()) return;
+        try {
+            BulkOperations bulkOps = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, SeenPost.class);
+            LocalDateTime now = LocalDateTime.now();
+            for (String postId : postIds) {
+                Query query = new Query(Criteria.where("user_id").is(userId).and("post_id").is(postId));
+                Update update = new Update()
+                        .set("user_id", userId)
+                        .set("post_id", postId)
+                        .set("seen_at", now);
+                bulkOps.upsert(query, update);
+            }
+            bulkOps.execute();
+        } catch (Exception e) {
+            log.warn("Failed to bulk mark {} posts as seen for user {}: {}", postIds.size(), userId, e.getMessage());
+        }
+    }
+
     @Override
     public List<String> getSeenPostIds(String userId) {
         return seenPostRepository.findByUserId(userId)
@@ -263,7 +285,8 @@ public class FeedServiceImpl implements FeedService {
                         CommentRepository.PostCommentCount::count));
     }
 
-    private List<PostResponse> toPostResponses(List<Post> posts, String requesterId) {
+    private List<PostResponse> toPostResponses(List<Post> posts, String requesterId,
+                                                Map<String, Integer> commentCountMap) {
         if (posts.isEmpty()) return List.of();
 
         List<String> ownerIds = posts.stream()
@@ -273,7 +296,7 @@ public class FeedServiceImpl implements FeedService {
         Map<String, Account> accountMap = accountRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
 
-        Map<String, Integer> commentCountMap = buildCommentCountMap(posts);
+        Map<String, PostOriginResponse> originResponseMap = buildOriginResponseMap(posts);
 
         return posts.stream()
                 .map(post -> {
@@ -282,10 +305,44 @@ public class FeedServiceImpl implements FeedService {
                         log.warn("Owner not found for post {}", post.getId());
                         return null;
                     }
-                    return buildPostResponse(post, owner, commentCountMap.getOrDefault(post.getId(), 0), requesterId);
+                    PostResponse response = buildPostResponse(post, owner,
+                            commentCountMap.getOrDefault(post.getId(), 0), requesterId);
+                    if (post.getOriginPostId() != null) {
+                        response.setPostOriginResponse(originResponseMap.get(post.getOriginPostId()));
+                    }
+                    return response;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    private Map<String, PostOriginResponse> buildOriginResponseMap(List<Post> posts) {
+        List<String> originIds = posts.stream()
+                .map(Post::getOriginPostId)
+                .filter(Objects::nonNull)
+                .distinct().toList();
+        if (originIds.isEmpty()) return Collections.emptyMap();
+
+        List<Post> originPosts = postRepository.findAllById(originIds);
+        List<String> originOwnerIds = originPosts.stream()
+                .map(p -> p.getOwner().getUserId())
+                .distinct().toList();
+        Map<String, Account> originOwnerMap = accountRepository.findAllById(originOwnerIds).stream()
+                .collect(Collectors.toMap(Account::getId, Function.identity()));
+
+        return originPosts.stream().collect(Collectors.toMap(Post::getId,
+                originPost -> buildPostOriginResponse(originPost, originOwnerMap.get(originPost.getOwner().getUserId()))));
+    }
+
+    private PostOriginResponse buildPostOriginResponse(Post originPost, Account owner) {
+        return new PostOriginResponse(
+                originPost.getId(),
+                originPost.getOwner().getUserId(),
+                buildContentResponse(originPost.getContent()),
+                owner != null ? DisplayNameUtils.build(owner) : originPost.getOwner().getDisplayName(),
+                owner != null ? owner.getAvatar() : originPost.getOwner().getAvatar(),
+                originPost.getCreateDatetime(),
+                originPost.getTags());
     }
 
 }

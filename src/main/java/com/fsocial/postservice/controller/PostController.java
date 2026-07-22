@@ -131,11 +131,12 @@ public class PostController {
                 .build();
     }
 
+    //get post display timeline
     @GetMapping
     public ApiResponse<List<PostResponse>> getPosts(@AuthenticationPrincipal Jwt jwt,
                                                     @RequestParam(value = "size", defaultValue = "10") int size) {
         String userId = jwt.getSubject();
-        int feedSize = Math.min(50, Math.max(1, size));
+        int feedSize = Math.min(50,size);
         List<PostResponse> posts = postService.getPostsByUserId(userId, feedSize);
         log.info("Lấy thông tin bài viết thành công");
         return ApiResponse.<List<PostResponse>>builder()

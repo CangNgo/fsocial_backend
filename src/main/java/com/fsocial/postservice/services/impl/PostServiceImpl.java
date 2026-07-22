@@ -84,11 +84,7 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> new AppException("Post not found", StatusCode.POST_NOT_FOUND));
         //Nếu tìm thấy thì cập nhật thông tin
 
-        existingPost.setContent(Content.builder()
-                .text(post.getText())
-                .html(post.getHtml())
-                .media(existingPost.getContent().getMedia())
-                .build());
+        postMapper.updateContent(post, existingPost.getContent());
         //cap nhat thoi gian
         existingPost.setUpdatedAt(LocalDateTime.now());
         return postMapper.toPostDTO(postRepository.save(existingPost));
@@ -198,11 +194,7 @@ public class PostServiceImpl implements PostService {
         Post post = postMapper.toPost(postRequest);
 
         ActorSnapshotDTO owner = accountService.getOwner(postRequest.getUserId());
-        post.setOwner(ActorSnapshot.builder()
-                .userId(owner.getUserId())
-                .displayName(owner.getDisplayName())
-                .avatar(owner.getAvatar())
-                .build());
+        post.setOwner(postMapper.toActorSnapshot(owner));
         post.setContent(contentMapper.toContent(contentDTO));
         post.setCreateDatetime(LocalDateTime.now());
         post.setLikes(new ArrayList<>());
@@ -226,11 +218,6 @@ public class PostServiceImpl implements PostService {
         }
 
         return Collections.emptyList();
-    }
-
-    @Override
-    public List<PostResponse> getPostsByUserId(String userId) {
-        return getPostsByUserId(userId, 10);
     }
 
     @Override
@@ -280,7 +267,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public SearchPageResponse<PostResponse> findByText(String text, String userId, int page, int size) {
         int safePage = Math.max(0, page);
-        int safeSize = Math.min(50, Math.max(1, size));
+        int safeSize = Math.min(50, size);
         String trimmedText = text == null ? "" : text.trim();
 
         if (trimmedText.isBlank()) {
@@ -354,6 +341,4 @@ public class PostServiceImpl implements PostService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
-
-
 }

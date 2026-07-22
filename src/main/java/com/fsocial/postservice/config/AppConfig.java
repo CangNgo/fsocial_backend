@@ -43,6 +43,8 @@ public class AppConfig {
 
     @NonFinal
     private final String[] PUBLIC_ENDPOINTS = {
+            // Check health
+            "/check",
             // Auth
             "/auth/**",
             // Internal service-to-service

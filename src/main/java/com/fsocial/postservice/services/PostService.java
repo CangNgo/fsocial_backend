@@ -16,8 +16,6 @@ public interface PostService {
     List<Post> getPostsByUser(String userId, String requesterId);
 
     // Methods from timelineService
-    List<PostResponse> getPostsByUserId(String userId);
-
     List<PostResponse> getPostsByUserId(String userId, int feedSize);
 
 //    com.fsocial.postservice.dto.profile.ProfileResponse getProfile(String id);
