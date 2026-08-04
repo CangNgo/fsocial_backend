@@ -1,54 +1,44 @@
 package com.fsocial.postservice.entity;
 
-import com.fsocial.postservice.enums.DeviceType;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
-@Document(collection = "device_tokens")
-@CompoundIndexes({
-        @CompoundIndex(name = "uk_user_device",
-                def = "{'userId': 1, 'deviceId': 1}",
-                unique = true),
-        @CompoundIndex(name = "idx_user_active",
-                def = "{'userId': 1, 'isActive': 1}")
-})
-@Getter @Setter @Builder
+@Getter @Setter @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
+@Entity
+@Table(name = "device_token",
+        uniqueConstraints = @UniqueConstraint(name = "uk_device_user_device",
+                columnNames = {"user_id", "device_id"}))
 public class DeviceToken extends AbstractEntity<String> {
 
-    @Field("user_id")
+    @Column(name = "user_id", length = 36, nullable = false)
     private String userId;
 
-    @Indexed(unique = true)
-    @Field("fcm_token")
+    @Column(name = "fcm_token", nullable = false, unique = true, columnDefinition = "text")
     private String fcmToken;
 
-    @Field("device_id")
+    @Column(name = "device_id", length = 128, nullable = false)
     private String deviceId;
 
-    @Field("device_type")
+    @Column(name = "device_type", length = 32)
     private String deviceType;
 
-    @Field("device_name")
+    @Column(name = "device_name", length = 128)
     private String deviceName;
 
-    @Field("app_version")
+    @Column(name = "app_version", length = 32)
     private String appVersion;
 
-    @Field("os_version")
+    @Column(name = "os_version", length = 32)
     private String osVersion;
 
-    @Field("is_active")
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
 
-    @Field("last_use_at")
+    @Column(name = "last_use_at")
     private LocalDateTime lastUsedAt;
 }

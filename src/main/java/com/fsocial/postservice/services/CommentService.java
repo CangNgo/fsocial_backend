@@ -6,17 +6,16 @@ import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.entity.Comment;
 
-import java.io.IOException;
 import java.util.List;
 
-public interface CommentService{
-    Comment addComment(CommentDTORequest comment);
+public interface CommentService {
+    CommentResponse addComment(CommentDTORequest comment);
 
     boolean toggleLikeComment(String commentId, String userId);
 
     Integer countLike(String commentId, String userId);
 
-    Comment updateComment(CommentUpdateDTORequest comment);
+    CommentResponse updateComment(CommentUpdateDTORequest comment);
 
     String deleteComment(String commentID);
 

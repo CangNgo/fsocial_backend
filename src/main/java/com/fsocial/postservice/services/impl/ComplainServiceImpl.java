@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +50,7 @@ public class ComplainServiceImpl implements ComplaintService {
     NotificationEvent notificationEvent;
 
     @Override
+    @Transactional
     public ComplaintDTOResponse addComplaint(ComplaintDTO complaintDTO, String userId) {
         ComplaintDetail detail = ComplaintDetail.builder()
                 .userId(userId)
@@ -63,7 +65,8 @@ public class ComplainServiceImpl implements ComplaintService {
                         .complaintType(complaintDTO.getComplaintType())
                         .build());
 
-        complaint.getDetails().add(detail);
+        // addDetail set cả 2 chiều; cascade ALL trên Complaint.details lo phần insert complaint_detail
+        complaint.addDetail(detail);
 
         Complaint res = complaintRepository.save(complaint);
 
@@ -98,6 +101,7 @@ public class ComplainServiceImpl implements ComplaintService {
 
     // Methods from timelineService
     @Override
+    @Transactional(readOnly = true)
     public List<com.fsocial.postservice.dto.complaint.ComplaintDTOResponse> getComplaints() {
         return complaintRepository.findAll().stream()
                 .flatMap(complaint -> complaint.getDetails().stream()
@@ -106,6 +110,7 @@ public class ComplainServiceImpl implements ComplaintService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public com.fsocial.postservice.dto.complaint.ComplaintDTOResponse getComplaintById(String complaintId) {
         Complaint complaint = complaintRepository.findById(complaintId)
                 .orElseThrow(() -> new AppException("Không tìm thấy báo cáo", StatusCode.COMPLAIN_NOT_FOUND));
@@ -127,12 +132,11 @@ public class ComplainServiceImpl implements ComplaintService {
             mapComplaint.put(hour, count);
         }
 
+        // Bản cũ add 2 dòng cho giờ có dữ liệu (thiếu else) → 24 giờ ra tới 48 dòng.
         for (int hour = 0; hour < 24; hour++) {
-            if (mapComplaint.containsKey(String.valueOf(hour))) {
-                result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsDTO(String.valueOf(hour),
-                        mapComplaint.get(String.valueOf(hour))));
-            }
-            result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsDTO(String.valueOf(hour), 0));
+            String key = String.valueOf(hour);
+            result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsDTO(
+                    key, mapComplaint.getOrDefault(key, 0)));
         }
 
         return result;
@@ -141,25 +145,21 @@ public class ComplainServiceImpl implements ComplaintService {
     @Override
     public List<com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO> countStatisticsComplainLongDay(
             LocalDateTime startDate, LocalDateTime endDate) {
-        List<com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO> complaintStatisticsDTOS = complaintRepository
-                .countByDate(startDate, endDate);
-        List<com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO> result = new java.util.ArrayList<>();
+        // Bản cũ remove trong lúc for-each (ConcurrentModificationException) và bắn dòng 0
+        // cho mọi phần tử không khớp. Index theo ngày rồi fill là đủ, mỗi ngày đúng 1 dòng.
+        java.util.Map<LocalDateTime, Integer> countByDay = complaintRepository.countByDate(startDate, endDate)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        d -> d.getDate().truncatedTo(java.time.temporal.ChronoUnit.DAYS),
+                        com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO::getCount,
+                        Integer::sum));
 
+        List<com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO> result = new java.util.ArrayList<>();
         LocalDateTime start = startDate.truncatedTo(java.time.temporal.ChronoUnit.DAYS);
         LocalDateTime end = endDate.plusDays(1).truncatedTo(java.time.temporal.ChronoUnit.DAYS);
-        while (!start.equals(end)) {
-            for (com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO complaint : complaintStatisticsDTOS) {
-                if (complaint.getDate().truncatedTo(java.time.temporal.ChronoUnit.DAYS).equals(start)) {
-                    result.add(complaint);
-                    complaintStatisticsDTOS.remove(complaint);
-                } else {
-                    result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO(start, 0));
-                }
-            }
-
-            if (complaintStatisticsDTOS.isEmpty()) {
-                result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO(start, 0));
-            }
+        while (start.isBefore(end)) {
+            result.add(new com.fsocial.postservice.dto.complaint.ComplaintStatisticsLongDayDTO(
+                    start, countByDay.getOrDefault(start, 0)));
             start = start.plusDays(1);
         }
         return result;

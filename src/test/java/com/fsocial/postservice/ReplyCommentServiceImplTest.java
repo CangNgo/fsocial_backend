@@ -1,13 +1,14 @@
 package com.fsocial.postservice;
 
+import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
 import com.fsocial.postservice.entity.Comment;
-import com.fsocial.postservice.entity.Content;
-import com.fsocial.postservice.entity.ReplyComment;
+import com.fsocial.postservice.entity.CommentLike;
 import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.repository.AccountRepository;
+import com.fsocial.postservice.repository.CommentLikeRepository;
 import com.fsocial.postservice.repository.CommentRepository;
 import com.fsocial.postservice.services.AccountService;
 import com.fsocial.postservice.services.impl.ReplyCommentServiceImpl;
@@ -16,21 +17,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+/** Reply giờ là comment có parent_id — test bám model mới, không còn mảng nhúng. */
 @ExtendWith(MockitoExtension.class)
 class ReplyCommentServiceImplTest {
 
@@ -39,9 +39,9 @@ class ReplyCommentServiceImplTest {
     @Mock
     private AccountService accountService;
     @Mock
-    private MongoTemplate mongoTemplate;
-    @Mock
     private CommentRepository commentRepository;
+    @Mock
+    private CommentLikeRepository commentLikeRepository;
     @Mock
     private AccountRepository accountRepository;
 
@@ -52,110 +52,111 @@ class ReplyCommentServiceImplTest {
         service = new ReplyCommentServiceImpl(
                 mediaUploadUtils,
                 accountService,
-                mongoTemplate,
                 commentRepository,
+                commentLikeRepository,
                 accountRepository
         );
     }
 
     @Test
-    @DisplayName("addReplyComment embeds reply and marks comment as replied")
-    void addReplyComment_embedsReply() throws Exception {
-        Comment comment = Comment.builder()
-                .postId("post-1")
-                .userId("owner")
-                .reply(false)
-                .replies(new ArrayList<>())
-                .build();
-        comment.setId("comment-1");
+    @DisplayName("addReplyComment lưu comment con trỏ parent, kế thừa postId")
+    void addReplyComment_savesChildComment() {
+        Comment parent = comment("comment-1", null);
+        parent.setPostId("post-1");
+        when(commentRepository.findById("comment-1")).thenReturn(Optional.of(parent));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
+            Comment c = inv.getArgument(0);
+            c.setId("reply-1");
+            return c;
+        });
+        when(accountRepository.findById("user-1")).thenReturn(Optional.empty());
 
         ReplyCommentRequest request = ReplyCommentRequest.builder()
-                .commentId("comment-1")
-                .userId("user-1")
-                .text("hello")
-                .html("<p>hello</p>")
-                .build();
+                .commentId("comment-1").userId("user-1")
+                .text("hello").html("<p>hello</p>").build();
 
-        ReplyComment result = service.addReplyComment(request);
+        ReplyCommentResponse result = service.addReplyComment(request);
 
         assertThat(result.getUserId()).isEqualTo("user-1");
-        assertThat(comment.getReply()).isTrue();
-        assertThat(comment.getReplies()).hasSize(1);
-        assertThat(comment.getReplies().get(0).getContent().getText()).isEqualTo("hello");
-        verify(commentRepository).findById("comment-1");
-        verify(commentRepository).save(comment);
+        assertThat(result.getCommentId()).isEqualTo("comment-1");
+        assertThat(result.getContent().getText()).isEqualTo("hello");
+
+        ArgumentCaptor<Comment> captor = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository).save(captor.capture());
+        assertThat(captor.getValue().getParent()).isSameAs(parent);
+        assertThat(captor.getValue().getPostId()).isEqualTo("post-1");
     }
 
     @Test
-    @DisplayName("deleteReplyComment removes last reply and resets flag")
-    void deleteReplyComment_resetsReplyFlag() throws Exception {
-        ReplyComment reply = new ReplyComment();
-        reply.setId("reply-1");
-        reply.setUserId("user-1");
-
-        Comment comment = Comment.builder()
-                .reply(true)
-                .replies(new ArrayList<>(List.of(reply)))
-                .build();
-        comment.setId("comment-1");
-
-        when(commentRepository.findByRepliesId("reply-1")).thenReturn(Optional.of(comment));
+    @DisplayName("deleteReplyComment xóa dòng comment, cascade lo like/media")
+    void deleteReplyComment_deletesRow() {
+        Comment reply = comment("reply-1", comment("comment-1", null));
+        when(commentRepository.findById("reply-1")).thenReturn(Optional.of(reply));
 
         String result = service.deleteReplyComment("reply-1");
 
         assertThat(result).isEqualTo("Xóa replycomment thành công");
-        assertThat(comment.getReply()).isFalse();
-        assertThat(comment.getReplies()).isEmpty();
-        verify(commentRepository).save(comment);
+        verify(commentRepository).delete(reply);
     }
 
     @Test
-    @DisplayName("updateReplyComment changes nested content")
-    void updateReplyComment_updatesNestedContent() throws Exception {
-        ReplyComment reply = new ReplyComment();
-        reply.setId("reply-1");
-        reply.setUserId("user-1");
-        reply.setContent(Content.builder().text("old").html("old").build());
+    @DisplayName("deleteReplyComment từ chối id của comment gốc")
+    void deleteReplyComment_rejectsRootComment() {
+        when(commentRepository.findById("comment-1")).thenReturn(Optional.of(comment("comment-1", null)));
 
-        Comment comment = Comment.builder()
-                .reply(true)
-                .replies(new ArrayList<>(List.of(reply)))
-                .build();
+        assertThatThrownBy(() -> service.deleteReplyComment("comment-1"))
+                .isInstanceOf(AppException.class);
+        verify(commentRepository, never()).delete(any());
+    }
 
-        ReplyCommentUpdateDTORequest request = ReplyCommentUpdateDTORequest.builder()
-                .replyCommentId("reply-1")
-                .userId("user-1")
-                .text("new")
-                .html("<p>new</p>")
-                .build();
+    @Test
+    @DisplayName("updateReplyComment ghi text/html phẳng")
+    void updateReplyComment_updatesFlatContent() {
+        Comment reply = comment("reply-1", comment("comment-1", null));
+        reply.setText("old");
+        reply.setHtml("old");
 
         when(accountService.existsById("user-1")).thenReturn(true);
-        when(commentRepository.findByRepliesId("reply-1")).thenReturn(Optional.of(comment));
+        when(commentRepository.findById("reply-1")).thenReturn(Optional.of(reply));
+        when(commentRepository.save(reply)).thenReturn(reply);
+        when(accountRepository.findById("user-1")).thenReturn(Optional.empty());
 
-        ReplyComment updated = service.updateReplyComment(request);
+        ReplyCommentUpdateDTORequest request = ReplyCommentUpdateDTORequest.builder()
+                .replyCommentId("reply-1").userId("user-1")
+                .text("new").html("<p>new</p>").build();
+
+        ReplyCommentResponse updated = service.updateReplyComment(request);
 
         assertThat(updated.getContent().getText()).isEqualTo("new");
         assertThat(updated.getContent().getHtml()).isEqualTo("<p>new</p>");
-        verify(commentRepository).save(comment);
+        assertThat(updated.getCommentId()).isEqualTo("comment-1");
     }
 
     @Test
-    @DisplayName("getReplyCommentsByCommentId maps embedded replies")
+    @DisplayName("updateReplyComment rejects missing user")
+    void updateReplyComment_rejectsMissingUser() {
+        when(accountService.existsById("user-1")).thenReturn(false);
+
+        ReplyCommentUpdateDTORequest request = ReplyCommentUpdateDTORequest.builder()
+                .replyCommentId("reply-1").userId("user-1")
+                .text("new").html("<p>new</p>").build();
+
+        assertThatThrownBy(() -> service.updateReplyComment(request))
+                .isInstanceOf(AppException.class);
+    }
+
+    @Test
+    @DisplayName("getReplyCommentsByCommentId map like count theo batch")
     void getReplyCommentsByCommentId_mapsReplies() {
-        ReplyComment reply = new ReplyComment();
-        reply.setId("reply-1");
-        reply.setUserId("user-1");
-        reply.setLikes(new ArrayList<>(List.of("u2", "u3")));
-        reply.setContent(Content.builder().text("hello").html("<p>hello</p>").build());
+        Comment reply = comment("reply-1", comment("comment-1", null));
+        reply.setText("hello");
+        reply.setHtml("<p>hello</p>");
         reply.setCreateDatetime(LocalDateTime.now());
 
-        Comment comment = Comment.builder()
-                .reply(true)
-                .replies(List.of(reply))
-                .build();
-
-        when(commentRepository.findById("comment-1")).thenReturn(Optional.of(comment));
+        when(commentRepository.findByParentId("comment-1")).thenReturn(List.of(reply));
         when(accountRepository.findAllById(any())).thenReturn(List.of());
+        when(commentLikeRepository.countByCommentIdIn(List.of("reply-1")))
+                .thenReturn(List.<Object[]>of(new Object[]{"reply-1", 2L}));
 
         List<ReplyCommentResponse> result = service.getReplyCommentsByCommentId("comment-1");
 
@@ -166,18 +167,26 @@ class ReplyCommentServiceImplTest {
     }
 
     @Test
-    @DisplayName("updateReplyComment rejects missing user")
-    void updateReplyComment_rejectsMissingUser() {
-        ReplyCommentUpdateDTORequest request = ReplyCommentUpdateDTORequest.builder()
-                .replyCommentId("reply-1")
-                .userId("user-1")
-                .text("new")
-                .html("<p>new</p>")
-                .build();
+    @DisplayName("likeReplyComment toggle qua comment_like, idempotent theo PK")
+    void likeReplyComment_toggles() {
+        LikeReplyCommentDTO request = LikeReplyCommentDTO.builder()
+                .replyCommentId("reply-1").userId("user-1").build();
 
-        when(accountService.existsById("user-1")).thenReturn(false);
+        when(commentRepository.existsByIdAndParentIsNotNull("reply-1")).thenReturn(true);
+        when(accountService.existsById("user-1")).thenReturn(true);
+        when(commentLikeRepository.existsByCommentIdAndUserId("reply-1", "user-1"))
+                .thenReturn(false, true);
 
-        assertThatThrownBy(() -> service.updateReplyComment(request))
-                .isInstanceOf(AppException.class);
+        assertThat(service.likeReplyComment(request)).isTrue();
+        verify(commentLikeRepository).save(any(CommentLike.class));
+
+        assertThat(service.likeReplyComment(request)).isFalse();
+        verify(commentLikeRepository).deleteByCommentIdAndUserId("reply-1", "user-1");
+    }
+
+    private Comment comment(String id, Comment parent) {
+        Comment c = Comment.builder().userId("user-1").parent(parent).build();
+        c.setId(id);
+        return c;
     }
 }

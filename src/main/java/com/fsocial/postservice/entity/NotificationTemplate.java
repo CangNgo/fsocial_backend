@@ -1,37 +1,43 @@
 package com.fsocial.postservice.entity;
 
-
 import com.fsocial.postservice.enums.NotificationType;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
-@Document(collection = "notification_templates")
 @Getter
 @Setter
-@Builder
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
-public final class NotificationTemplate extends AbstractEntity<String> {
-    @Indexed(unique = true)
+@Entity
+@Table(name = "notification_template")
+public class NotificationTemplate extends AbstractEntity<String> {
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 32, nullable = false, unique = true)
     private NotificationType type;
 
     /** Map locale ("vi", "en", "ja"...) → template tương ứng */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "template_translation",
+            joinColumns = @JoinColumn(name = "template_id"))
+    @MapKeyColumn(name = "locale", length = 8)
     @Builder.Default
     private Map<String, LocalizedTemplate> translations = new HashMap<>();
 
-    @Field("default_data")
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "template_default_data",
+            joinColumns = @JoinColumn(name = "template_id"))
+    @MapKeyColumn(name = "data_key", length = 64)
+    @Column(name = "data_value", columnDefinition = "text")
     @Builder.Default
-    private Map<String, Object> defaultData = new HashMap<>();
+    private Map<String, String> defaultData = new HashMap<>();
 
-    @Field("is_active")
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
-
 }
-

@@ -3,6 +3,7 @@ package com.fsocial.postservice.controller;
 import com.fsocial.postservice.dto.ApiResponse;
 import com.fsocial.postservice.dto.google.GoogleDTORequest;
 import com.fsocial.postservice.dto.request.*;
+import com.fsocial.postservice.dto.response.AccountResponse;
 import com.fsocial.postservice.dto.response.AuthenticationResponse;
 import com.fsocial.postservice.dto.response.DuplicationResponse;
 import com.fsocial.postservice.dto.response.IntrospectResponse;
@@ -88,12 +89,11 @@ public class AuthenticateController {
     }
 
     @PostMapping("/register")
-    public ApiResponse<Account> persistAccount(@RequestBody @Valid AccountRegisterRequest request) {
-        Account account = accountService.persistAccount(request);
-        return ApiResponse.<Account>builder()
+    public ApiResponse<AccountResponse> persistAccount(@RequestBody @Valid AccountRegisterRequest request) {
+        return ApiResponse.<AccountResponse>builder()
                 .statusCode(AccountResponseStatus.ACCOUNT_REGISTERED.getCODE())
                 .message(AccountResponseStatus.ACCOUNT_REGISTERED.getMessage())
-                .data(account)
+                .data(accountService.persistAccount(request))
                 .build();
     }
     @PostMapping("/send-otp")

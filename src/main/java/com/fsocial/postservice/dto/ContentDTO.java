@@ -1,6 +1,6 @@
 package com.fsocial.postservice.dto;
 
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,5 +15,5 @@ import java.util.List;
 public class ContentDTO {
     String text;
     String html;
-    List<MediaItem> media;
+    List<MediaItemDTO> media;
 }

@@ -1,28 +1,58 @@
 package com.fsocial.postservice.entity;
 
+import com.fsocial.postservice.enums.AttachmentType;
+import com.fsocial.postservice.enums.MediaType;
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "attachments")
-@Builder
+@Entity
+@Table(name = "attachments")
+@SuperBuilder
 public class Attachments extends AbstractEntity<String> {
-    @Field("public_id")
+
+    @Column(name = "public_id")
     String publicId;
-    @Field("resource_type")
+
+    @Column(name = "resource_type", length = 64)
     String resourceType;
-    @Field("file_type")
+
+    @Column(name = "file_type", length = 64)
     String fileType;
-    @Field("size")
+
+    @Column(name = "size", length = 64)
     String size;
-    @Field("url")
+
+    @Column(name = "url", columnDefinition = "text")
     String url;
-    @Field("owner_id")
+
+    @Column(name = "owner_id", length = 36)
     String ownerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id")
+    Post post;
+
+    @Column(name = "ord")
+    Integer ord;
+
+    @Column(name = "width")
+    Integer width;
+
+    @Column(name = "height")
+    Integer height;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 16)
+    AttachmentType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "media_type", length = 8)
+    MediaType mediaType;
 }

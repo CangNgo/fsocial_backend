@@ -4,64 +4,158 @@ import com.fsocial.postservice.dto.post.PostStatisticsDTO;
 import com.fsocial.postservice.dto.post.PostStatisticsLongDateDTO;
 import com.fsocial.postservice.entity.Post;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.Aggregation;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public interface PostRepository extends MongoRepository<Post, String> {
+public interface PostRepository extends JpaRepository<Post, String> {
 
-    @Aggregation(pipeline = {
-            "{$match: {_id: ?0}}",
-            "{ $project: {countLikes : {$size: '$likes'}}}"
-    })
-    Integer countLikeByPost(String postId);
-    boolean existsByIdAndLikes(String postId, String userId);
-    List<Post> findByOwnerUserId(String userId);
+    List<Post> findByOwnerId(String userId);
 
-    List<Post> findByContentTextContainingIgnoreCase(String content);
-    List<Post> findByContentTextContainingIgnoreCase(String content, Pageable pageable);
-    List<Post> findByIdNotInOrderByCreateDatetimeDesc(List<String> postIdViewed, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where lower(p.text) like lower(concat('%', :keyword, '%'))
+            """)
+    List<Post> findByTextContainingIgnoreCase(@Param("keyword") String keyword);
 
-    @Query(value = "{ 'owner.user_id': { $in: ?0 }, '_id': { $nin: ?1 } }", sort = "{ 'created_datetime': -1 }")
-    List<Post> findByOwnerUserIdInAndIdNotInOrderByCreateDatetimeDesc(List<String> userIds, List<String> postIds, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where lower(p.text) like lower(concat('%', :keyword, '%'))
+            """)
+    List<Post> findByTextContainingIgnoreCase(@Param("keyword") String keyword, Pageable pageable);
 
-    // Feed recommendation queries (BRD)
-    @Query(value = "{ 'tags': ?0, '_id': { $nin: ?1 }, 'status': true }", sort = "{ 'global_score': -1 }")
-    List<Post> findByTagAndIdNotIn(String tag, List<String> excludedIds, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where p.id not in :excludedIds
+            order by p.createDatetime desc
+            """)
+    List<Post> findByIdNotInOrderByCreateDatetimeDesc(@Param("excludedIds") List<String> excludedIds,
+                                                      Pageable pageable);
 
-    @Query(value = "{ 'tags': ?0, '_id': { $nin: ?1 }, 'status': true, 'created_datetime': { $gte: ?2 } }", sort = "{ 'global_score': -1 }")
-    List<Post> findByTagAndIdNotInSince(String tag, List<String> excludedIds, LocalDateTime since, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where p.owner.id in :userIds and p.id not in :excludedIds
+            order by p.createDatetime desc
+            """)
+    List<Post> findByOwnerIdInAndIdNotInOrderByCreateDatetimeDesc(@Param("userIds") List<String> userIds,
+                                                                  @Param("excludedIds") List<String> excludedIds,
+                                                                  Pageable pageable);
 
-    @Query(value = "{ 'tags': { $in: ?0 }, '_id': { $nin: ?1 }, 'status': true }", sort = "{ 'global_score': -1 }")
-    List<Post> findByTagsInAndIdNotIn(List<String> tags, List<String> excludedIds, Pageable pageable);
+    // ---- Feed recommendation queries (BRD) ----
 
-    @Query(value = "{ 'tags': { $in: ?0 }, '_id': { $nin: ?1 }, 'status': true, 'created_datetime': { $gte: ?2 } }", sort = "{ 'global_score': -1 }")
-    List<Post> findByTagsInAndIdNotInSince(List<String> tags, List<String> excludedIds, LocalDateTime since, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where array_contains(p.tags, :tag) = true and p.id not in :excludedIds and p.status = true
+            order by p.globalScore desc
+            """)
+    List<Post> findByTagAndIdNotIn(@Param("tag") String tag,
+                                   @Param("excludedIds") List<String> excludedIds,
+                                   Pageable pageable);
 
-    @Query(value = "{ '_id': { $nin: ?0 }, 'status': true }", sort = "{ 'global_score': -1 }")
-    List<Post> findTopByGlobalScore(List<String> excludedIds, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where array_contains(p.tags, :tag) = true and p.id not in :excludedIds and p.status = true
+              and p.createDatetime >= :since
+            order by p.globalScore desc
+            """)
+    List<Post> findByTagAndIdNotInSince(@Param("tag") String tag,
+                                        @Param("excludedIds") List<String> excludedIds,
+                                        @Param("since") LocalDateTime since,
+                                        Pageable pageable);
 
-    @Query(value = "{ '_id': { $nin: ?0 }, 'status': true, 'created_datetime': { $gte: ?1 } }", sort = "{ 'global_score': -1 }")
-    List<Post> findTopByGlobalScoreSince(List<String> excludedIds, LocalDateTime since, Pageable pageable);
+    @Query("""
+            select p from Post p
+            where array_intersects(p.tags, :tags) = true and p.id not in :excludedIds and p.status = true
+            order by p.globalScore desc
+            """)
+    List<Post> findByTagsInAndIdNotIn(@Param("tags") List<String> tags,
+                                      @Param("excludedIds") List<String> excludedIds,
+                                      Pageable pageable);
 
-    @Aggregation(pipeline = {
-            "{ '$match': { 'created_datetime': { '$gte': ?0, '$lte': ?1 } } }",
-            "{ '$group': { '_id': { '$hour': '$created_datetime' }, 'count': { '$sum': 1 } } }",
-            "{ '$project': { 'hour': '$_id', 'count': 1, '_id': 0 } }"
-    })
-    List<PostStatisticsDTO> countByCreatedAtByHours(LocalDateTime startDate, LocalDateTime endDate);
+    @Query("""
+            select p from Post p
+            where array_intersects(p.tags, :tags) = true and p.id not in :excludedIds and p.status = true
+              and p.createDatetime >= :since
+            order by p.globalScore desc
+            """)
+    List<Post> findByTagsInAndIdNotInSince(@Param("tags") List<String> tags,
+                                           @Param("excludedIds") List<String> excludedIds,
+                                           @Param("since") LocalDateTime since,
+                                           Pageable pageable);
 
-    @Aggregation(pipeline = {
-            "{ '$match': { 'created_datetime': { '$gte': ?0, '$lte': ?1 } } }",
-            "{ '$group': { '_id': { '$dateTrunc': { 'date': '$created_datetime', 'unit': 'day' } }, 'count': { '$sum': 1 } } }",
-            "{ '$project': { 'date': '$_id', 'count': 1, '_id': 0 } }",
-            "{ '$sort': { 'date': 1 } }"
-    })
-    List<PostStatisticsLongDateDTO> countByDate(LocalDateTime startDate, LocalDateTime endDate);
+    @Query("""
+            select p from Post p
+            where p.id not in :excludedIds and p.status = true
+            order by p.globalScore desc
+            """)
+    List<Post> findTopByGlobalScore(@Param("excludedIds") List<String> excludedIds, Pageable pageable);
+
+    @Query("""
+            select p from Post p
+            where p.id not in :excludedIds and p.status = true
+              and p.createDatetime >= :since
+            order by p.globalScore desc
+            """)
+    List<Post> findTopByGlobalScoreSince(@Param("excludedIds") List<String> excludedIds,
+                                         @Param("since") LocalDateTime since,
+                                         Pageable pageable);
+
+    // ---- Statistics ----
+
+    @Query(value = """
+            select cast(extract(hour from create_datetime) as varchar) as hour, count(*) as count
+            from post
+            where create_datetime between :startDate and :endDate
+            group by 1
+            order by 1
+            """, nativeQuery = true)
+    List<Object[]> countByCreatedAtByHoursRaw(@Param("startDate") LocalDateTime startDate,
+                                              @Param("endDate") LocalDateTime endDate);
+
+    @Query(value = """
+            select date_trunc('day', create_datetime) as date, count(*) as count
+            from post
+            where create_datetime between :startDate and :endDate
+            group by 1
+            order by 1
+            """, nativeQuery = true)
+    List<Object[]> countByDateRaw(@Param("startDate") LocalDateTime startDate,
+                                  @Param("endDate") LocalDateTime endDate);
+
+    default List<PostStatisticsDTO> countByCreatedAtByHours(LocalDateTime startDate, LocalDateTime endDate) {
+        return countByCreatedAtByHoursRaw(startDate, endDate).stream()
+                .map(r -> PostStatisticsDTO.builder()
+                        .hour((String) r[0])
+                        .count(((Number) r[1]).intValue())
+                        .build())
+                .toList();
+    }
+
+    default List<PostStatisticsLongDateDTO> countByDate(LocalDateTime startDate, LocalDateTime endDate) {
+        return countByDateRaw(startDate, endDate).stream()
+                .map(r -> PostStatisticsLongDateDTO.builder()
+                        .date(((java.sql.Timestamp) r[0]).toLocalDateTime())
+                        .count(((Number) r[1]).intValue())
+                        .build())
+                .toList();
+    }
+
+    // ---- Score updates (thay cho MongoTemplate .inc/.set) ----
+
+    /** clearAutomatically: ScoreUpdateConsumer đọc lại shareCount ngay sau khi tăng. */
+    @Modifying(clearAutomatically = true)
+    @Query("update Post p set p.shareCount = p.shareCount + 1 where p.id = :postId")
+    int incrementShareCount(@Param("postId") String postId);
+
+    @Modifying
+    @Query("update Post p set p.rawEngagement = :raw, p.globalScore = :global where p.id = :postId")
+    int updateScores(@Param("postId") String postId,
+                     @Param("raw") double rawEngagement,
+                     @Param("global") double globalScore);
 }

@@ -1,6 +1,7 @@
 package com.fsocial.postservice.entity;
 
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 import lombok.*;
 
 @Getter
@@ -8,8 +9,15 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Embeddable
 public class ChannelSettings {
-    @Builder.Default private boolean pushEnabled  = true;
+
+    @Column(name = "push_enabled", nullable = false)
+    @Builder.Default private boolean pushEnabled = true;
+
+    @Column(name = "email_enabled", nullable = false)
     @Builder.Default private boolean emailEnabled = false;
+
+    @Column(name = "in_app_enabled", nullable = false)
     @Builder.Default private boolean inAppEnabled = true;
 }

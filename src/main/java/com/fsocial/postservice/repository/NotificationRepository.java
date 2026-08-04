@@ -1,11 +1,12 @@
 package com.fsocial.postservice.repository;
 
-import com.fsocial.postservice.dto.notification.NotificationResponse;
 import com.fsocial.postservice.entity.Notification;
 import com.fsocial.postservice.enums.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface NotificationRepository extends MongoRepository<Notification, String> {
+public interface NotificationRepository extends JpaRepository<Notification, String> {
 
     Page<Notification> findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(
             String recipientId, Pageable pageable);
@@ -29,10 +30,25 @@ public interface NotificationRepository extends MongoRepository<Notification, St
 
     long countByRecipientIdAndIsReadFalse(String recipientId);
 
-    List<NotificationResponse> findByRecipientIdOrderByIdDesc(String recipientId, Pageable pageable);
+    /**
+     * Trang đầu của cursor pagination. Sắp theo (created_at, id) chứ không theo id:
+     * id là UUID ngẫu nhiên nên không có thứ tự thời gian.
+     */
+    @Query("select n from Notification n where n.recipientId = :recipientId order by n.createdAt desc, n.id desc")
+    List<Notification> findFirstPage(@Param("recipientId") String recipientId, Pageable pageable);
 
-    List<NotificationResponse> findByRecipientIdAndIdLessThanOrderByIdDesc(
-            String recipientId, String id, Pageable pageable);
+    /** Trang kế — keyset trên (created_at, id). */
+    @Query("""
+            select n from Notification n
+            where n.recipientId = :recipientId
+              and (n.createdAt < :cursorAt
+                   or (n.createdAt = :cursorAt and n.id < :cursorId))
+            order by n.createdAt desc, n.id desc
+            """)
+    List<Notification> findNextPage(@Param("recipientId") String recipientId,
+                                    @Param("cursorAt") Instant cursorAt,
+                                    @Param("cursorId") String cursorId,
+                                    Pageable pageable);
 
     Optional<Notification> findFirstByRecipientIdAndGroupKeyAndIsReadFalseAndCreatedAtAfter(
             String recipientId, String groupKey, Instant since);

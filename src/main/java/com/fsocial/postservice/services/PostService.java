@@ -2,7 +2,6 @@ package com.fsocial.postservice.services;
 
 import com.fsocial.postservice.dto.post.*;
 import com.fsocial.postservice.dto.response.SearchPageResponse;
-import com.fsocial.postservice.entity.Post;
 
 import java.util.List;
 
@@ -13,7 +12,7 @@ public interface PostService {
     boolean toggleLike(String postId, String userId) throws Exception;
     Integer CountLike(String postId, String userId);
     PostDTO sharePost (PostShareDTORequest dto );
-    List<Post> getPostsByUser(String userId, String requesterId);
+    List<PostResponse> getPostsByUser(String userId, String requesterId);
 
     // Methods from timelineService
     List<PostResponse> getPostsByUserId(String userId, int feedSize);

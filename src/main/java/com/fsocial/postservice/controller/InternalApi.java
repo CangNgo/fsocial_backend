@@ -1,7 +1,7 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
 import com.fsocial.postservice.services.UploadMedia;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -25,18 +25,18 @@ public class InternalApi {
     UploadMedia uploadImage;
 
     @PostMapping("/upload-file")
-    public ApiResponse<MediaItem> uploadFile(@RequestParam("fileUpload") MultipartFile file) {
-        MediaItem[] items = uploadImage.uploadMedia(new MultipartFile[]{file});
-        return ApiResponse.<MediaItem>builder()
+    public ApiResponse<MediaItemDTO> uploadFile(@RequestParam("fileUpload") MultipartFile file) {
+        MediaItemDTO[] items = uploadImage.uploadMedia(new MultipartFile[]{file});
+        return ApiResponse.<MediaItemDTO>builder()
                 .data(items[0])
                 .message("Upload file success")
                 .build();
     }
 
     @PostMapping("/upload-files")
-    public ApiResponse<List<MediaItem>> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) {
-        MediaItem[] items = uploadImage.uploadMedia(file);
-        return ApiResponse.<List<MediaItem>>builder()
+    public ApiResponse<List<MediaItemDTO>> uploadFiles(@RequestParam("fileUpload") MultipartFile[] file) {
+        MediaItemDTO[] items = uploadImage.uploadMedia(file);
+        return ApiResponse.<List<MediaItemDTO>>builder()
                 .data(Arrays.asList(items))
                 .message("Upload file success")
                 .build();

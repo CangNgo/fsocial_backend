@@ -1,20 +1,24 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "term_of_service")
-@Builder
+@Entity
+@Table(name = "term_of_service")
+@SuperBuilder
 public class TermOfServices extends AbstractEntity<String> {
-    @Field("name")
+
+    @Column(name = "name", nullable = false, columnDefinition = "text")
     String name;
-    @Field("status")
+
+    @Column(name = "status", nullable = false)
+    @Builder.Default
     Boolean status = true;
 }

@@ -121,12 +121,11 @@ public class PostController {
     }
 
     @GetMapping("/user/{userId}")
-    public ApiResponse<List<Post>> getPostsByUser(@PathVariable String userId,
-                                                  @AuthenticationPrincipal Jwt jwt) {
+    public ApiResponse<List<PostResponse>> getPostsByUser(@PathVariable String userId,
+                                                          @AuthenticationPrincipal Jwt jwt) {
         String requesterId = jwt.getSubject();
-        List<Post> posts = postService.getPostsByUser(userId, requesterId);
-        return ApiResponse.<List<Post>>builder()
-                .data(posts)
+        return ApiResponse.<List<PostResponse>>builder()
+                .data(postService.getPostsByUser(userId, requesterId))
                 .message("Lấy bài đăng thành công")
                 .build();
     }

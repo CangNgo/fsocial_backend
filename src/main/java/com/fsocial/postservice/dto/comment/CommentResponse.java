@@ -1,6 +1,6 @@
 package com.fsocial.postservice.dto.comment;
 
-import com.fsocial.postservice.entity.Content;
+import com.fsocial.postservice.dto.post.ContentResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -13,9 +13,11 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CommentResponse {
     String id;
+    String postId;
     String userId;
-    Content content;
+    ContentResponse content;
     Integer countLikes;
+    Integer countReplies;
     String displayName;
     String avatar;
     LocalDateTime createDatetime;

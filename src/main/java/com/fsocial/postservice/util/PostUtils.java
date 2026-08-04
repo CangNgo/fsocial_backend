@@ -4,10 +4,10 @@ import com.fsocial.postservice.dto.post.ContentResponse;
 import com.fsocial.postservice.dto.post.MediaResponse;
 import com.fsocial.postservice.dto.post.PostResponse;
 import com.fsocial.postservice.entity.Account;
-import com.fsocial.postservice.entity.Content;
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.entity.Attachments;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.enums.MediaLayoutType;
+import com.fsocial.postservice.enums.MediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,53 +20,58 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @Slf4j
 public class PostUtils {
-    public static PostResponse buildPostResponse(Post post, Account owner, int commentCount, String requesterId) {
+
+    /** likeCount / isLike vẫn ở bảng riêng (post_like) nên phải truyền vào; tags đọc thẳng từ entity. */
+    public static PostResponse buildPostResponse(Post post, Account owner, int commentCount,
+                                                 int likeCount, boolean liked) {
         return PostResponse.builder()
                 .id(post.getId())
                 .originPostId(post.getOriginPostId())
-                .content(buildContentResponse(post.getContent()))
-                .countLikes(post.getLikes() == null ? 0 : post.getLikes().size())
+                .content(buildContentResponse(post))
+                .countLikes(likeCount)
                 .countComments(commentCount)
-                .userId(post.getOwner().getUserId())
+                .userId(post.getOwner().getId())
                 .displayName(DisplayNameUtils.build(owner))
-                .avatar(owner.getAvatar())
+                .avatar(owner == null ? null : owner.getAvatar())
                 .createDatetime(post.getCreateDatetime())
-                .isLike(post.getLikes() != null && post.getLikes().contains(requesterId))
+                .isLike(liked)
                 .isShare(Boolean.TRUE.equals(post.getIsShare()))
                 .status(Boolean.TRUE.equals(post.getStatus()))
-                .tags(post.getTags())
+                .tags(post.getTags() == null ? List.of() : post.getTags())
                 .build();
     }
 
-    public static ContentResponse buildContentResponse(Content content) {
+    public static ContentResponse buildContentResponse(Post post) {
         return ContentResponse.builder()
-                .html(content.getHtml())
-                .text(content.getText())
-                .media(buildMediaResponse(content.getMedia()))
+                .html(post.getHtml())
+                .text(post.getText())
+                .media(buildMediaResponse(post.getMedia()))
                 .build();
     }
 
-    public static List<MediaResponse> buildMediaResponse(List<MediaItem> mediaItem) {
-        if (mediaItem == null || mediaItem.isEmpty()) {
+    public static List<MediaResponse> buildMediaResponse(List<Attachments> mediaItems) {
+        if (mediaItems == null || mediaItems.isEmpty()) {
             return new ArrayList<>();
         }
-        return mediaItem.stream()
+        return mediaItems.stream()
                 .filter(Objects::nonNull)
-                .map(item -> {
-            double ratio = (item.getWidth() == null || item.getHeight() == null || item.getHeight() == 0)
-                    ? 1.0
-                    : (double) item.getWidth() / item.getHeight();
-            log.info("Ratio: {}", ratio);
-            MediaLayoutType layoutType = calculateLayoutType(ratio);
-            return MediaResponse.builder()
-                    .type(item.getType())
-                    .url(item.getUrl())
-                    .width(item.getWidth())
-                    .height(item.getHeight())
-                    .ratio(ratio)
-                    .mediaType(layoutType)
-                    .build();
-        }).toList();
+                .map(item -> toMediaResponse(item.getMediaType(), item.getUrl(), item.getWidth(), item.getHeight()))
+                .toList();
+    }
+
+    /** Dùng chung cho attachments và comment_media — hai entity khác nhau nhưng cùng bộ field. */
+    public static MediaResponse toMediaResponse(MediaType type, String url, Integer width, Integer height) {
+        double ratio = (width == null || height == null || height == 0)
+                ? 1.0
+                : (double) width / height;
+        return MediaResponse.builder()
+                .type(type == null ? null : type.value())
+                .url(url)
+                .width(width)
+                .height(height)
+                .ratio(ratio)
+                .mediaType(calculateLayoutType(ratio))
+                .build();
     }
 
     public static MediaLayoutType calculateLayoutType(double ratio) {

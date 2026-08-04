@@ -1,17 +1,21 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "permissions")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@Entity
+@Table(name = "permission")
 public class Permission {
+
     @Id
+    @Column(name = "name", length = 64)
     String name;
+
+    @Column(name = "description", columnDefinition = "text")
     String description;
 }

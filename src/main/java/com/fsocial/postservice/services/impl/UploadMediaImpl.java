@@ -4,7 +4,9 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
+import com.fsocial.postservice.enums.AttachmentType;
+import com.fsocial.postservice.enums.MediaType;
 import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.AttachmentsService;
@@ -54,13 +56,18 @@ public class UploadMediaImpl implements UploadMedia {
     private static final String HEIGHT_KEY = "height";
 
     @Override
-    public MediaItem[] uploadMedia(MultipartFile[] files) {
+    public MediaItemDTO[] uploadMedia(MultipartFile[] files) {
+        return uploadMedia(files, null);
+    }
+
+    @Override
+    public MediaItemDTO[] uploadMedia(MultipartFile[] files, AttachmentType type) {
         if (files == null || files.length == 0) {
             throw new AppException("No files provided", StatusCode.FILE_NOT_FOUND);
         }
         validateAllBeforeUpload(files);
         String userId = currentUserId();
-        MediaItem[] mediaItems = new MediaItem[files.length];
+        MediaItemDTO[] mediaItems = new MediaItemDTO[files.length];
         int successCount = 0;
         boolean hasOversizeFailure = false;
 
@@ -70,7 +77,7 @@ public class UploadMediaImpl implements UploadMedia {
                 continue;
             }
             try {
-                mediaItems[i] = uploadOne(currentFile, userId);
+                mediaItems[i] = uploadOne(currentFile, userId, type);
                 successCount++;
             } catch (AppException e) {
                 mediaItems[i] = null;
@@ -94,18 +101,23 @@ public class UploadMediaImpl implements UploadMedia {
 
         return Arrays.stream(mediaItems)
                 .filter(Objects::nonNull)
-                .toArray(MediaItem[]::new);
+                .toArray(MediaItemDTO[]::new);
     }
 
     @Override
-    public MediaItem uploadSingleMedia(MultipartFile file) {
+    public MediaItemDTO uploadSingleMedia(MultipartFile file) {
+        return uploadSingleMedia(file, null);
+    }
+
+    @Override
+    public MediaItemDTO uploadSingleMedia(MultipartFile file, AttachmentType type) {
         if (file == null || file.isEmpty()) {
             throw new AppException("No file provided", StatusCode.FILE_NOT_FOUND);
         }
-        return uploadOne(file, currentUserId());
+        return uploadOne(file, currentUserId(), type);
     }
 
-    private MediaItem uploadOne(MultipartFile file, String userId) {
+    private MediaItemDTO uploadOne(MultipartFile file, String userId, AttachmentType type) {
         File tempFile = null;
         try {
             validateFileSize(file);
@@ -125,22 +137,31 @@ public class UploadMediaImpl implements UploadMedia {
 
             String secureUrl = uploadResult.get(SECURE_URL_KEY).toString();
             String resolvedType = uploadResult.get(RESOURCE_TYPE_KEY).toString();
-            attachmentsService.save(AttachmentDTO.builder()
+            MediaType mediaType = MediaType.fromValue(resolvedType);
+            Object rawWidth = uploadResult.get(WIDTH_KEY);
+            Object rawHeight = uploadResult.get(HEIGHT_KEY);
+            Integer width = rawWidth != null ? Integer.parseInt(rawWidth.toString()) : null;
+            Integer height = rawHeight != null ? Integer.parseInt(rawHeight.toString()) : null;
+            AttachmentDTO saved = attachmentsService.save(AttachmentDTO.builder()
                     .publicId(uploadResult.get(PUBLIC_ID_KEY).toString())
                     .size(uploadResult.get(BYTES_KEY).toString())
                     .resourceType(resolvedType)
                     .fileType(uploadResult.get(FORMAT_KEY).toString())
                     .ownerId(userId)
                     .url(secureUrl)
+                    .type(type)
+                    .mediaType(mediaType)
+                    .width(width)
+                    .height(height)
                     .build());
 
-            Object rawWidth = uploadResult.get(WIDTH_KEY);
-            Object rawHeight = uploadResult.get(HEIGHT_KEY);
-            return MediaItem.builder()
+            return MediaItemDTO.builder()
+                    .attachmentId(saved.getId())
                     .url(secureUrl)
-                    .type(resolvedType)
-                    .width(rawWidth != null ? Integer.parseInt(rawWidth.toString()) : null)
-                    .height(rawHeight != null ? Integer.parseInt(rawHeight.toString()) : null)
+                    .type(mediaType.value())
+                    .mediaType(mediaType)
+                    .width(width)
+                    .height(height)
                     .build();
         } catch (AppException e) {
             throw e;

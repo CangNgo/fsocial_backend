@@ -1,40 +1,42 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.springframework.data.annotation.*;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
-import org.springframework.data.mongodb.core.mapping.FieldType;
-import org.springframework.data.mongodb.core.mapping.MongoId;
+import org.hibernate.annotations.UuidGenerator;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
-@Document
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class AbstractEntity<T extends Serializable> implements Serializable {
 
-    @MongoId(FieldType.STRING)
-    private String id = UUID.randomUUID().toString();
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column()
+    private String id;
 
     @CreatedBy
-    @Field("created_by")
+    @Column(name = "created_by" )
     private T createdBy;
 
     @LastModifiedBy
-    @Field("updated_by")
+    @Column(name = "updated_by", length = 36)
     private T updatedBy;
 
-    @Field("created_at")
+    @Column(name = "created_at")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Field("updated_at")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
 }

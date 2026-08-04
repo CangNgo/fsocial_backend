@@ -46,10 +46,14 @@ spring:
           auth: true
           starttls:
             enable: true
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/flowzone}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
   data:
-    mongodb:
-      uri: ${MONGODB_URI}
-      auto-index-creation: false
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -68,6 +72,13 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 google:
   client-id: ${GOOGLE_CLIENT_ID}
   app-name: ${APP_NAME}
@@ -105,7 +116,7 @@ logging:
     root: INFO
     com.fsocial: DEBUG
     org.springframework.security: INFO
-    org.springframework.data.mongodb: INFO
+    org.hibernate.SQL: INFO
 #  {
 #    "username": "CangNgo",
 #    "password": "Cang123123@",

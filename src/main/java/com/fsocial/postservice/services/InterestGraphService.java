@@ -1,6 +1,6 @@
 package com.fsocial.postservice.services;
 
-import com.fsocial.postservice.entity.UserInterests;
+import com.fsocial.postservice.entity.UserInterest;
 
 import java.util.List;
 import java.util.Map;
@@ -9,7 +9,7 @@ public interface InterestGraphService {
 
     /**
      * Atomically add deltaWeight to each tag for userId.
-     * Creates the document and/or tag entries if they don't exist.
+     * Creates the row if it doesn't exist.
      */
     void updateInterests(String userId, List<String> tags, double deltaWeight);
 
@@ -30,5 +30,5 @@ public interface InterestGraphService {
      */
     void applyDecay(double decayFactor, double removalThreshold);
 
-    UserInterests getInterests(String userId);
+    List<UserInterest> getInterests(String userId);
 }

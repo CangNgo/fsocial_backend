@@ -4,18 +4,16 @@ import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
-import com.fsocial.postservice.entity.ReplyComment;
 
-import java.io.IOException;
 import java.util.List;
 
 public interface ReplyCommentService {
 
-    ReplyComment addReplyComment(ReplyCommentRequest request) throws IOException;
+    ReplyCommentResponse addReplyComment(ReplyCommentRequest request);
 
-    ReplyComment updateReplyComment(ReplyCommentUpdateDTORequest request);
+    ReplyCommentResponse updateReplyComment(ReplyCommentUpdateDTORequest request);
 
-    String deleteReplyComment (String replyCommentId);
+    String deleteReplyComment(String replyCommentId);
 
     // Methods from timelineService
     List<ReplyCommentResponse> getReplyCommentsByCommentId(String commentId);

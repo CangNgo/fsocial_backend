@@ -1,6 +1,7 @@
 package com.fsocial.postservice.util;
 
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
+import com.fsocial.postservice.enums.AttachmentType;
 import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.UploadMedia;
@@ -16,13 +17,17 @@ public class MediaUploadUtils {
 
     private final UploadMedia uploadMedia;
 
-    public MediaItem[] uploadValidMedia(MultipartFile[] media) {
-        if (media == null || media.length == 0) return new MediaItem[0];
+    public MediaItemDTO[] uploadValidMedia(MultipartFile[] media) {
+        return uploadValidMedia(media, null);
+    }
 
-        if (!hasValidMedia(media)) return new MediaItem[0];
+    public MediaItemDTO[] uploadValidMedia(MultipartFile[] media, AttachmentType type) {
+        if (media == null || media.length == 0) return new MediaItemDTO[0];
+
+        if (!hasValidMedia(media)) return new MediaItemDTO[0];
 
         try {
-            return uploadMedia.uploadMedia(media);
+            return uploadMedia.uploadMedia(media, type);
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {

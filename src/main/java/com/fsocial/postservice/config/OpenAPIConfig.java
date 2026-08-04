@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 import java.util.List;
 
@@ -23,7 +24,8 @@ public class OpenAPIConfig {
     private String contextPath;
 
     @Bean
-    public OpenAPI customOpenAPI() {
+    public OpenAPI customOpenAPI(RequestMappingInfoHandlerMapping requestMappingHandlerMapping) {
+        int totalApi = requestMappingHandlerMapping.getHandlerMethods().size();
         Server localServer = new Server()
                 .url("http://localhost:" + serverPort + contextPath)
                 .description("Local Development Server");
@@ -36,7 +38,7 @@ public class OpenAPIConfig {
                 .info(new Info()
                         .title("Post Service API")
                         .version("1.0.0")
-                        .description("API documentation cho Post Service — quản lý bài viết, bình luận, tài khoản, xác thực")
+                        .description("API documentation cho Post Service — quản lý bài viết, bình luận, tài khoản, xác thực. Tổng số API: " + totalApi)
                         .license(new License()
                                 .name("FSocial")
                                 .url("https://www.fsocial.com")))

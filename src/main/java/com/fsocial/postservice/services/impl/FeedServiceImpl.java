@@ -11,13 +11,11 @@ import com.fsocial.postservice.util.DisplayNameUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.mongodb.core.BulkOperations;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -37,19 +35,26 @@ public class FeedServiceImpl implements FeedService {
     // wildcard fills the remainder: 1.0 - 0.70 - 0.20 = 0.10
 
     private static final int MAX_CANDIDATE_POOL_PER_TAG = 100;
-    private static final int MAX_RELATED_TAGS = 5;
     private static final int CANDIDATE_MAX_AGE_DAYS = 7;
 
+    /** Thay upsert của Mongo — seen_post là bảng khóa kép (user_id, post_id). */
+    private static final String UPSERT_SEEN = """
+            insert into seen_post(user_id, post_id, seen_at) values (?, ?, ?)
+            on conflict (user_id, post_id) do update set seen_at = excluded.seen_at
+            """;
+
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
     private final SeenPostRepository seenPostRepository;
     private final AccountRepository accountRepository;
     private final CommentRepository commentRepository;
-    private final TagCooccurrenceRepository tagCooccurrenceRepository;
+    private final FollowRepository followRepository;
     private final InterestGraphService interestGraphService;
     private final ScoringService scoringService;
-    private final MongoTemplate mongoTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
+    @Transactional
     public List<PostResponse> buildPersonalizedFeed(String userId, int feedSize) {
         Map<String, Double> normalizedWeights = interestGraphService.getNormalizedWeights(userId);
         List<String> seenIds = getSeenPostIds(userId);
@@ -58,8 +63,7 @@ public class FeedServiceImpl implements FeedService {
         if (normalizedWeights.isEmpty()) {
             // Cold start: fall back to chronological feed (no interest data)
             candidates = postRepository.findByIdNotInOrderByCreateDatetimeDesc(
-                    seenIds.isEmpty() ? List.of() : seenIds,
-                    PageRequest.of(0, feedSize));
+                    excludable(seenIds), PageRequest.of(0, feedSize));
         } else {
             candidates = buildCandidatePool(userId, normalizedWeights, seenIds, feedSize);
         }
@@ -68,29 +72,39 @@ public class FeedServiceImpl implements FeedService {
             // All posts seen — reset and return fresh chronological batch
             seenPostRepository.deleteByUserId(userId);
             candidates = postRepository.findByIdNotInOrderByCreateDatetimeDesc(
-                    List.of(), PageRequest.of(0, feedSize));
+                    excludable(List.of()), PageRequest.of(0, feedSize));
         }
 
         // Enrich with social context and sort by final_score (score computed once per post)
-        Set<String> followingIds = getFollowingIds(userId);
-        Map<String, Integer> commentCountMap = buildCommentCountMap(candidates);
+        Set<String> followingIds = new HashSet<>(followRepository.findFolloweeIds(userId));
+        List<String> postIds = candidates.stream().map(Post::getId).toList();
+        Map<String, Integer> commentCountMap = buildCommentCountMap(postIds);
+        Map<String, Integer> likeCountMap = buildLikeCountMap(postIds);
+        Map<String, List<String>> tagMap = candidates.stream()
+                .collect(Collectors.toMap(Post::getId, Post::getTags));
 
         record Scored(Post post, double score) {}
-        List<Post> sorted = candidates.stream()
+        candidates = candidates.stream()
                 .map(p -> new Scored(p, scoringService.calculateFinalScore(
                         p,
+                        likeCountMap.getOrDefault(p.getId(), 0),
                         commentCountMap.getOrDefault(p.getId(), 0),
                         normalizedWeights,
-                        followingIds.contains(p.getOwner().getUserId()))))
+                        tagMap.getOrDefault(p.getId(), List.of()),
+                        followingIds.contains(p.getOwner().getId()))))
                 .sorted(Comparator.comparingDouble(Scored::score).reversed())
                 .map(Scored::post)
                 .collect(Collectors.toList());
-        candidates = sorted;
 
         // Mark posts as seen
         markSeenBatch(userId, candidates.stream().map(Post::getId).toList());
 
-        return toPostResponses(candidates, userId, commentCountMap);
+        return toPostResponses(candidates, userId, commentCountMap, likeCountMap);
+    }
+
+    /** JPQL {@code not in ()} rỗng là cú pháp lỗi — luôn có ít nhất 1 phần tử không tồn tại. */
+    private List<String> excludable(List<String> ids) {
+        return ids.isEmpty() ? List.of("") : ids;
     }
 
     private List<Post> buildCandidatePool(String userId, Map<String, Double> normalizedWeights,
@@ -124,7 +138,7 @@ public class FeedServiceImpl implements FeedService {
     private List<Post> getExploitPosts(Map<String, Double> normalizedWeights,
                                        List<String> seenIds, int totalSlots) {
         List<Post> result = new ArrayList<>();
-        List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
+        List<String> exclusions = excludable(seenIds);
         LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
 
         for (Map.Entry<String, Double> entry : normalizedWeights.entrySet()) {
@@ -139,8 +153,7 @@ public class FeedServiceImpl implements FeedService {
                         entry.getKey(), exclusions, PageRequest.of(0, poolSize));
             }
 
-            List<Post> sampled = weightedSample(pool, slots);
-            result.addAll(sampled);
+            result.addAll(weightedSample(pool, slots));
         }
 
         return result.stream()
@@ -151,37 +164,20 @@ public class FeedServiceImpl implements FeedService {
     }
 
     /**
-     * Explore (20%): Use tag co-occurrence to find related tags user hasn't explicitly expressed.
+     * Explore (20%): posts matching user's known tags, outside their usual candidate pool.
      */
     private List<Post> getExplorePosts(Map<String, Double> normalizedWeights,
                                        List<String> seenIds, int totalSlots) {
         List<String> knownTags = new ArrayList<>(normalizedWeights.keySet());
-        Set<String> relatedTags = new LinkedHashSet<>();
+        if (knownTags.isEmpty()) return List.of();
 
-        for (String tag : knownTags) {
-            tagCooccurrenceRepository.findByTagAOrderByCountDesc(tag, PageRequest.of(0, MAX_RELATED_TAGS))
-                    .stream()
-                    .map(TagCooccurrence::getTagB)
-                    .filter(t -> !knownTags.contains(t))
-                    .forEach(relatedTags::add);
-            if (relatedTags.size() >= MAX_RELATED_TAGS * 2) break;
-        }
-
-        List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
+        List<String> exclusions = excludable(seenIds);
         LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
 
-        if (relatedTags.isEmpty()) {
-            // No co-occurrence data yet — fallback: use posts from tags user hasn't seen much
-            List<Post> recent = postRepository.findByTagsInAndIdNotInSince(knownTags, exclusions, since, PageRequest.of(0, totalSlots));
-            if (recent.isEmpty()) recent = postRepository.findByTagsInAndIdNotIn(knownTags, exclusions, PageRequest.of(0, totalSlots));
-            return recent;
-        }
-
         List<Post> recent = postRepository.findByTagsInAndIdNotInSince(
-                new ArrayList<>(relatedTags), exclusions, since, PageRequest.of(0, totalSlots));
+                knownTags, exclusions, since, PageRequest.of(0, totalSlots));
         if (recent.isEmpty()) {
-            recent = postRepository.findByTagsInAndIdNotIn(
-                    new ArrayList<>(relatedTags), exclusions, PageRequest.of(0, totalSlots));
+            recent = postRepository.findByTagsInAndIdNotIn(knownTags, exclusions, PageRequest.of(0, totalSlots));
         }
         return recent;
     }
@@ -190,7 +186,7 @@ public class FeedServiceImpl implements FeedService {
      * Wildcard (10%): Top globally-scored posts the user hasn't seen (within 7 days, fallback unbounded).
      */
     private List<Post> getWildcardPosts(List<String> seenIds, int totalSlots) {
-        List<String> exclusions = seenIds.isEmpty() ? List.of() : seenIds;
+        List<String> exclusions = excludable(seenIds);
         LocalDateTime since = LocalDateTime.now().minusDays(CANDIDATE_MAX_AGE_DAYS);
         List<Post> recent = postRepository.findTopByGlobalScoreSince(exclusions, since, PageRequest.of(0, totalSlots));
         if (recent.isEmpty()) recent = postRepository.findTopByGlobalScore(exclusions, PageRequest.of(0, totalSlots));
@@ -231,12 +227,7 @@ public class FeedServiceImpl implements FeedService {
     @Override
     public void markSeen(String userId, String postId) {
         try {
-            Query query = new Query(Criteria.where("user_id").is(userId).and("post_id").is(postId));
-            Update update = new Update()
-                    .set("user_id", userId)
-                    .set("post_id", postId)
-                    .set("seen_at", LocalDateTime.now());
-            mongoTemplate.upsert(query, update, SeenPost.class);
+            jdbcTemplate.update(UPSERT_SEEN, userId, postId, Timestamp.valueOf(LocalDateTime.now()));
         } catch (Exception e) {
             log.warn("Failed to mark post {} as seen for user {}: {}", postId, userId, e.getMessage());
         }
@@ -246,17 +237,9 @@ public class FeedServiceImpl implements FeedService {
     private void markSeenBatch(String userId, List<String> postIds) {
         if (postIds.isEmpty()) return;
         try {
-            BulkOperations bulkOps = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, SeenPost.class);
-            LocalDateTime now = LocalDateTime.now();
-            for (String postId : postIds) {
-                Query query = new Query(Criteria.where("user_id").is(userId).and("post_id").is(postId));
-                Update update = new Update()
-                        .set("user_id", userId)
-                        .set("post_id", postId)
-                        .set("seen_at", now);
-                bulkOps.upsert(query, update);
-            }
-            bulkOps.execute();
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            jdbcTemplate.batchUpdate(UPSERT_SEEN,
+                    postIds.stream().map(id -> new Object[]{userId, id, now}).toList());
         } catch (Exception e) {
             log.warn("Failed to bulk mark {} posts as seen for user {}: {}", postIds.size(), userId, e.getMessage());
         }
@@ -264,49 +247,47 @@ public class FeedServiceImpl implements FeedService {
 
     @Override
     public List<String> getSeenPostIds(String userId) {
-        return seenPostRepository.findByUserId(userId)
-                .stream()
-                .map(SeenPost::getPostId)
-                .collect(Collectors.toList());
+        return seenPostRepository.findPostIdsByUserId(userId);
     }
 
-    private Set<String> getFollowingIds(String userId) {
-        return accountRepository.findById(userId)
-                .map(Account::getFollowing)
-                .orElse(Collections.emptySet());
-    }
-
-    private Map<String, Integer> buildCommentCountMap(List<Post> posts) {
-        if (posts.isEmpty()) return Collections.emptyMap();
-        List<String> postIds = posts.stream().map(Post::getId).toList();
+    private Map<String, Integer> buildCommentCountMap(List<String> postIds) {
+        if (postIds.isEmpty()) return Collections.emptyMap();
         return commentRepository.countByPostIdIn(postIds).stream()
                 .collect(Collectors.toMap(
                         CommentRepository.PostCommentCount::_id,
                         CommentRepository.PostCommentCount::count));
     }
 
+    private Map<String, Integer> buildLikeCountMap(List<String> postIds) {
+        if (postIds.isEmpty()) return Collections.emptyMap();
+        return postLikeRepository.countByPostIdIn(postIds).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).intValue()));
+    }
+
     private List<PostResponse> toPostResponses(List<Post> posts, String requesterId,
-                                                Map<String, Integer> commentCountMap) {
+                                               Map<String, Integer> commentCountMap,
+                                               Map<String, Integer> likeCountMap) {
         if (posts.isEmpty()) return List.of();
 
-        List<String> ownerIds = posts.stream()
-                .map(p -> p.getOwner().getUserId())
-                .distinct().toList();
-
+        List<String> ownerIds = posts.stream().map(p -> p.getOwner().getId()).distinct().toList();
         Map<String, Account> accountMap = accountRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
 
+        Set<String> likedByRequester = new HashSet<>(
+                postLikeRepository.findLikedPostIds(requesterId, posts.stream().map(Post::getId).toList()));
         Map<String, PostOriginResponse> originResponseMap = buildOriginResponseMap(posts);
 
         return posts.stream()
                 .map(post -> {
-                    Account owner = accountMap.get(post.getOwner().getUserId());
+                    Account owner = accountMap.get(post.getOwner().getId());
                     if (owner == null) {
                         log.warn("Owner not found for post {}", post.getId());
                         return null;
                     }
                     PostResponse response = buildPostResponse(post, owner,
-                            commentCountMap.getOrDefault(post.getId(), 0), requesterId);
+                            commentCountMap.getOrDefault(post.getId(), 0),
+                            likeCountMap.getOrDefault(post.getId(), 0),
+                            likedByRequester.contains(post.getId()));
                     if (post.getOriginPostId() != null) {
                         response.setPostOriginResponse(originResponseMap.get(post.getOriginPostId()));
                     }
@@ -325,24 +306,25 @@ public class FeedServiceImpl implements FeedService {
 
         List<Post> originPosts = postRepository.findAllById(originIds);
         List<String> originOwnerIds = originPosts.stream()
-                .map(p -> p.getOwner().getUserId())
+                .map(p -> p.getOwner().getId())
                 .distinct().toList();
         Map<String, Account> originOwnerMap = accountRepository.findAllById(originOwnerIds).stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
 
         return originPosts.stream().collect(Collectors.toMap(Post::getId,
-                originPost -> buildPostOriginResponse(originPost, originOwnerMap.get(originPost.getOwner().getUserId()))));
+                origin -> buildPostOriginResponse(origin,
+                        originOwnerMap.get(origin.getOwner().getId()),
+                        origin.getTags())));
     }
 
-    private PostOriginResponse buildPostOriginResponse(Post originPost, Account owner) {
+    private PostOriginResponse buildPostOriginResponse(Post originPost, Account owner, List<String> tags) {
         return new PostOriginResponse(
                 originPost.getId(),
-                originPost.getOwner().getUserId(),
-                buildContentResponse(originPost.getContent()),
-                owner != null ? DisplayNameUtils.build(owner) : originPost.getOwner().getDisplayName(),
-                owner != null ? owner.getAvatar() : originPost.getOwner().getAvatar(),
+                originPost.getOwner().getId(),
+                buildContentResponse(originPost),
+                DisplayNameUtils.build(owner),
+                owner != null ? owner.getAvatar() : null,
                 originPost.getCreateDatetime(),
-                originPost.getTags());
+                tags);
     }
-
 }

@@ -4,10 +4,12 @@ import com.fsocial.postservice.dto.profile.ProfileResponse;
 import com.fsocial.postservice.dto.request.UpdateProfileRequest;
 import com.fsocial.postservice.dto.response.AccountResponse;
 import com.fsocial.postservice.entity.Account;
+import com.fsocial.postservice.enums.AttachmentType;
 import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.AccountMapper;
 import com.fsocial.postservice.repository.AccountRepository;
+import com.fsocial.postservice.repository.FollowRepository;
 import com.fsocial.postservice.services.ProfileService;
 import com.fsocial.postservice.services.UploadMedia;
 import com.fsocial.postservice.util.DisplayNameUtils;
@@ -18,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashSet;
+
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -25,12 +29,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProfileServiceImpl implements ProfileService {
 
     AccountRepository accountRepository;
+    FollowRepository followRepository;
     AccountMapper accountMapper;
     UploadMedia uploadMedia;
 
     @Override
     public ProfileResponse updateAvatar(MultipartFile file, String userId) {
-        String avatar = uploadImage(file);
+        String avatar = uploadImage(file, AttachmentType.AVATAR);
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new AppException(StatusCode.UPLOAD_AVATAR_FAIL));
 
@@ -40,7 +45,7 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public ProfileResponse updateBackground(MultipartFile file, String userId) {
-        String background = uploadImage(file);
+        String background = uploadImage(file, AttachmentType.BACKGROUND);
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new AppException(StatusCode.UPLOAD_AVATAR_FAIL));
 
@@ -76,13 +81,17 @@ public class ProfileServiceImpl implements ProfileService {
                 .isKOL(updatedAccount.isKOL())
                 .role(updatedAccount.getRole().getName())
                 .bio(updatedAccount.getBio())
-                .follower(updatedAccount.getFollower())
-                .following(updatedAccount.getFollowing())
+                .follower(new HashSet<>(followRepository.findFollowerIds(updatedAccount.getId())))
+                .following(new HashSet<>(followRepository.findFolloweeIds(updatedAccount.getId())))
                 .build();
     }
 
     @Override
     public String uploadImage(MultipartFile file) {
-        return uploadMedia.uploadSingleMedia(file).getUrl();
+        return uploadImage(file, null);
+    }
+
+    private String uploadImage(MultipartFile file, AttachmentType type) {
+        return uploadMedia.uploadSingleMedia(file, type).getUrl();
     }
 }

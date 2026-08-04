@@ -1,6 +1,6 @@
 package com.fsocial.postservice.dto.replyComment;
 
-import com.fsocial.postservice.entity.Content;
+import com.fsocial.postservice.dto.post.ContentResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -15,9 +15,10 @@ public class ReplyCommentResponse {
     String id;
     String commentId;
     String userId;
-    Content content;
+    ContentResponse content;
     Integer countLikes;
     String displayName;
     String avatar;
     LocalDateTime createDatetime;
+    boolean like;
 }

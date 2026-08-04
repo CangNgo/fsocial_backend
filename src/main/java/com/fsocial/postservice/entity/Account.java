@@ -1,85 +1,86 @@
 package com.fsocial.postservice.entity;
 
 import com.fsocial.postservice.enums.AuthProvider;
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.SuperBuilder;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Set;
 
-@Document(collection = "accounts")
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @SuperBuilder
+@Entity
+@Table(name = "account")
 public class Account extends AbstractEntity<String> {
 
-    @Indexed(unique = true)
-    @Field("username")
+    @Column(name = "username", length = 64, nullable = false, unique = true)
     String username;
 
-    @Field("password")
+    @Column(name = "password")
     String password;
 
-    @Field("firstName")
+    @Column(name = "first_name", length = 128)
     String firstName;
 
-    @Field("lastName")
+    @Column(name = "last_name", length = 128)
     String lastName;
 
-    @Field("displayName")
+    @Column(name = "display_name")
     String displayName;
 
-    @Field("dob")
+    @Column(name = "dob")
     LocalDate dob;
 
-    @Field("gender")
+    @Column(name = "gender", nullable = false)
     int gender;
 
-    @Field("avatar")
+    @Column(name = "avatar", columnDefinition = "text")
     String avatar;
 
-    @Field("background")
+    @Column(name = "background", columnDefinition = "text")
     String background;
 
-    @Field("bio")
+    @Column(name = "bio", columnDefinition = "text")
     String bio;
 
-    @Field("address")
+    @Column(name = "address", columnDefinition = "text")
     String address;
 
+    @Column(name = "is_kol", nullable = false)
+    @Builder.Default
     boolean isKOL = false;
 
-    @DBRef
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
     Role role;
 
-    @DBRef
+    /** Token giữ FK account_id — bên này chỉ đọc. */
+    @OneToOne(mappedBy = "account", fetch = FetchType.LAZY)
     Token token;
 
+    @Column(name = "email")
     String email;
 
+    @Column(name = "status", nullable = false)
+    @Builder.Default
     boolean status = true;
 
-    @Field()
-    private AuthProvider provider;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider", length = 16, nullable = false)
+    @Builder.Default
+    AuthProvider provider = AuthProvider.LOCAL;
 
-    @Field(name = "google_id")
-    private String googleId;
+    @Column(name = "google_id", length = 64)
+    String googleId;
 
-    @Field("follower")
-    Set<String> follower = new HashSet<>();
+    // follower/following (Set<String>) -> bảng `follow`, truy vấn qua FollowRepository
 
-    @Field("following")
-    Set<String> following = new HashSet<>();
-
-    @Field("is_public")
-    Boolean isPublic;
+    @Column(name = "is_public", nullable = false)
+    @Builder.Default
+    Boolean isPublic = true;
 }

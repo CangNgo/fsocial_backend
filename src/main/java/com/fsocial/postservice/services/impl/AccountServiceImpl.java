@@ -19,7 +19,9 @@ import com.fsocial.postservice.enums.RedisKeyType;
 import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.AccountMapper;
+import com.fsocial.postservice.entity.Follow;
 import com.fsocial.postservice.repository.AccountRepository;
+import com.fsocial.postservice.repository.FollowRepository;
 import com.fsocial.postservice.repository.RefreshTokenRepository;
 import com.fsocial.postservice.repository.RoleRepository;
 import com.fsocial.postservice.repository.TokenRepository;
@@ -53,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 public class AccountServiceImpl implements AccountService {
 
     AccountRepository accountRepository;
+    FollowRepository followRepository;
     RoleRepository roleRepository;
     AccountMapper accountMapper;
     PasswordEncoder passwordEncoder;
@@ -68,14 +71,15 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Account persistAccount(AccountRegisterRequest request) {
+    public AccountResponse persistAccount(AccountRegisterRequest request) {
         Account account = saveAccount(request);
 //        createProfile(account, request);
         otpService.deleteOtp(request.getEmail(), RedisKeyType.REGISTER.getRedisKeyPrefix());
-        return account;
+        return toAccountResponse(account);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AccountResponse getUser(String id) {
         return accountRepository.findById(id)
                 .map(this::toAccountResponse)
@@ -190,6 +194,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AccountResponse getProfile(String userId) {
 
         Optional<Account> account = accountRepository.findById(userId);
@@ -256,6 +261,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public SearchPageResponse<AccountResponse> searchUsers(String keyword, int page, int size) {
         int safePage = Math.max(0, page);
         int safeSize = Math.min(50, Math.max(1, size));
@@ -279,21 +285,18 @@ public class AccountServiceImpl implements AccountService {
         return new SearchPageResponse<>(items, safePage, safeSize, hasMore);
     }
 
+    /** 1 dòng trong bảng follow thay cho việc mutate 2 Set rồi save 2 document như bản Mongo. */
     private void updateFollowRelation(String userId, String targetId, boolean isFollow) {
-        Account target = accountRepository.findById(targetId)
-                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
-        Account follower = accountRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
+        if (!accountRepository.existsById(targetId) || !accountRepository.existsById(userId))
+            throw new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED);
 
         if (isFollow) {
-            target.getFollower().add(userId);
-            follower.getFollowing().add(targetId);
+            // PK (follower_id, followee_id) đảm bảo idempotent
+            if (!followRepository.existsByFollowerIdAndFolloweeId(userId, targetId))
+                followRepository.save(new Follow(userId, targetId));
         } else {
-            target.getFollower().remove(userId);
-            follower.getFollowing().remove(targetId);
+            followRepository.deleteByFollowerIdAndFolloweeId(userId, targetId);
         }
-        accountRepository.save(target);
-        accountRepository.save(follower);
     }
 
     private Set<String> getCachedFollowData(String cacheKey, String targetId, boolean isFollower) {
@@ -306,9 +309,11 @@ public class AccountServiceImpl implements AccountService {
     }
 
     private Set<String> fetchFollowDataFromDB(String targetId, boolean isFollower) {
-        Account account = accountRepository.findById(targetId)
-                .orElseThrow(() -> new AppException(StatusCode.USER_NOT_FOUND));
-        return isFollower ? account.getFollower() : account.getFollowing();
+        if (!accountRepository.existsById(targetId))
+            throw new AppException(StatusCode.USER_NOT_FOUND);
+        return new HashSet<>(isFollower
+                ? followRepository.findFollowerIds(targetId)
+                : followRepository.findFolloweeIds(targetId));
     }
 
     private void updateRedis(String key, Set<String> data) {
@@ -357,8 +362,8 @@ public class AccountServiceImpl implements AccountService {
                 .isKOL(account.isKOL())
                 .role(account.getRole().getName())
                 .bio(account.getBio())
-                .follower(account.getFollower())
-                .following(account.getFollowing())
+                .follower(new HashSet<>(followRepository.findFollowerIds(account.getId())))
+                .following(new HashSet<>(followRepository.findFolloweeIds(account.getId())))
                 .build();
     }
 

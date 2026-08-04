@@ -25,8 +25,11 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -86,23 +89,61 @@ public class NotificationServiceImpl implements NotificaitonService {
     }
 
     static final int PAGE_SIZE = 10;
+    static final String CURSOR_SEP = "_";
 
     @Override
+    @Transactional(readOnly = true)   // aggregatedSenderIds là ElementCollection LAZY, open-in-view = false
     public NotificationCursorResponse getNotifications(String userId, String cursor) {
 
-        var pageable = PageRequest.of(0, PAGE_SIZE);
-        List<NotificationResponse> found = (cursor == null || cursor.isBlank())
-                ? notificationRepository.findByRecipientIdOrderByIdDesc(userId, pageable)
-                : notificationRepository.findByRecipientIdAndIdLessThanOrderByIdDesc(
-                        userId, cursor, pageable);
+        // fetch PAGE_SIZE + 1 để biết còn trang sau
+        var pageable = PageRequest.of(0, PAGE_SIZE + 1);
+        List<Notification> found = (cursor == null || cursor.isBlank())
+                ? notificationRepository.findFirstPage(userId, pageable)
+                : findAfterCursor(userId, cursor, pageable);
 
         boolean hasMore = found.size() > PAGE_SIZE;
-        List<NotificationResponse> items = hasMore ? found.subList(0, PAGE_SIZE) : found;
-        String nextCursor = hasMore ? items.getLast().getId() : null;
+        List<Notification> page = hasMore ? found.subList(0, PAGE_SIZE) : found;
+
+        List<NotificationResponse> items = page.stream().map(this::toResponse).toList();
+        Notification last = page.isEmpty() ? null : page.getLast();
+        String nextCursor = (hasMore && last != null) ? encodeCursor(last) : null;
 
         enrichActors(items);
 
         return new NotificationCursorResponse(items, nextCursor, hasMore);
+    }
+
+    private List<Notification> findAfterCursor(String userId, String cursor, PageRequest pageable) {
+        int sep = cursor.lastIndexOf(CURSOR_SEP);
+        if (sep <= 0) return notificationRepository.findFirstPage(userId, pageable);
+        try {
+            Instant at = Instant.ofEpochMilli(Long.parseLong(cursor.substring(0, sep)));
+            return notificationRepository.findNextPage(userId, at, cursor.substring(sep + 1), pageable);
+        } catch (NumberFormatException e) {
+            // cursor hỏng -> coi như trang đầu, an toàn hơn là trả lỗi
+            return notificationRepository.findFirstPage(userId, pageable);
+        }
+    }
+
+    /** Keyset cursor: id là UUID ngẫu nhiên nên phải kèm createdAt mới sắp được. */
+    private String encodeCursor(Notification n) {
+        return n.getCreatedAt().toEpochMilli() + CURSOR_SEP + n.getId();
+    }
+
+    private NotificationResponse toResponse(Notification n) {
+        return NotificationResponse.builder()
+                .id(n.getId())
+                .recipientId(n.getRecipientId())
+                .senderId(n.getSenderId())
+                .type(n.getType())
+                .groupKey(n.getGroupKey())
+                // copy: PersistentBag không dùng được sau khi tx đóng
+                .aggregatedSenderIds(new ArrayList<>(n.getAggregatedSenderIds()))
+                .title(n.getTitle())
+                .body(n.getBody())
+                .isRead(n.isRead())
+                .createdAt(n.getCreatedAt())
+                .build();
     }
 
     /** Lookup Account theo senderId/aggregatedSenderIds, gán vào actor/aggregatedActors */

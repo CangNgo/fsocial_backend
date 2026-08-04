@@ -2,6 +2,9 @@ package com.fsocial.postservice.services.impl;
 
 import com.fsocial.postservice.dto.Attachments.AttachmentDTO;
 import com.fsocial.postservice.entity.Attachments;
+import com.fsocial.postservice.entity.Post;
+import com.fsocial.postservice.enums.AttachmentType;
+import com.fsocial.postservice.exception.AppException;
 import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.mapper.AttachmentMapper;
 import com.fsocial.postservice.repository.AccountRepository;
@@ -11,12 +14,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +29,27 @@ public class AttachmentsServiceImpl implements AttachmentsService {
     @Override
     public AttachmentDTO save(AttachmentDTO dto) {
         return attachmentMapper.toDTO(attachmentsRepository.save(Attachments.builder()
-                .url(dto.getUrl()).resourceType(dto.getResourceType()).fileType(dto.getFileType()).size(dto.getSize()).ownerId(dto.getOwnerId()).publicId(dto.getPublicId()).build()));
+                .url(dto.getUrl())
+                .resourceType(dto.getResourceType())
+                .fileType(dto.getFileType())
+                .size(dto.getSize())
+                .ownerId(dto.getOwnerId())
+                .publicId(dto.getPublicId())
+                .width(dto.getWidth())
+                .height(dto.getHeight())
+                .type(dto.getType())
+                .mediaType(dto.getMediaType())
+                .build()));
+    }
+
+    @Override
+    public Attachments linkToPost(String attachmentId, Post post, int ord) {
+        Attachments attachment = attachmentsRepository.findById(attachmentId)
+                .orElseThrow(() -> new AppException(StatusCode.NOT_FOUND));
+        attachment.setPost(post);
+        attachment.setOrd(ord);
+        attachment.setType(AttachmentType.POST);
+        return attachmentsRepository.save(attachment);
     }
 
 //    @Override

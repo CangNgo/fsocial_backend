@@ -1,13 +1,11 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.SuperBuilder;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,42 +16,64 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "post")
+@Entity
+@Table(name = "post")
 @SuperBuilder
-@CompoundIndexes({
-    @CompoundIndex(name = "idx_tags_score", def = "{'tags': 1, 'global_score': -1}"),
-    @CompoundIndex(name = "idx_author_created", def = "{'owner.user_id': 1, 'created_datetime': -1}")
-})
 public class Post extends AbstractEntity<String> {
-    @Field("content")
-    Content content;
-    @Field("likes")
-    List<String> likes = new ArrayList<>();
-    @Field("created_datetime")
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    Account owner;
+
+    @Column(name = "text", columnDefinition = "text")
+    String text;
+
+    @Column(name = "html", columnDefinition = "text")
+    String html;
+
+    @OneToMany(mappedBy = "post")
+    @OrderBy("ord ASC")
+    @Builder.Default
+    List<Attachments> media = new ArrayList<>();
+
+    @Column(name = "create_datetime", nullable = false)
+    @Builder.Default
     LocalDateTime createDatetime = LocalDateTime.now();
-    //share
-    @Field("origin_post")
+
+    // share
+    @Column(name = "origin_post_id", length = 36)
     String originPostId;
-    @Field("is_share")
+
+    @Column(name = "is_share", nullable = false)
     @Builder.Default
     Boolean isShare = false;
-    @Field("status")
+
+    @Column(name = "status", nullable = false)
     @Builder.Default
     Boolean status = true;
-    //owner
-    @Field("owner")
-    ActorSnapshot owner;
+
     // Feed recommendation fields (BRD)
-    @Field("tags")
-    @Builder.Default
-    List<String> tags = new ArrayList<>();
-    @Field("global_score")
+    @Column(name = "global_score", nullable = false)
     @Builder.Default
     double globalScore = 0.0;
-    @Field("raw_engagement")
+
+    @Column(name = "raw_engagement", nullable = false)
     @Builder.Default
     double rawEngagement = 0.0;
-    @Field("share_count")
+
+    @Column(name = "share_count", nullable = false)
     @Builder.Default
     int shareCount = 0;
+
+    // likes vẫn qua PostLikeRepository (chỉ cần count/exists, không load mảng).
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", columnDefinition = "text[]")
+    @Builder.Default
+    List<String> tags = new ArrayList<>();
+
+    public void addMedia(Attachments item) {
+        item.setPost(this);
+        item.setOrd(media.size());
+        media.add(item);
+    }
 }

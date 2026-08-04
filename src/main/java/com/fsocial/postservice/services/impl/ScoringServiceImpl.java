@@ -18,15 +18,14 @@ public class ScoringServiceImpl implements ScoringService {
     private static final double COLD_START_AFFINITY = 0.5;
 
     @Override
-    public double calculateRawEngagement(Post post, int commentCount) {
-        int likeCount = post.getLikes() == null ? 0 : post.getLikes().size();
-        int shareCount = post.getShareCount();
-        return likeCount * 2.0 + commentCount * 3.0 + shareCount * 5.0;
+    public double calculateRawEngagement(Post post, int likeCount, int commentCount) {
+        return likeCount * 2.0 + commentCount * 3.0 + post.getShareCount() * 5.0;
     }
 
     @Override
-    public double calculateGlobalScore(Post post, int commentCount) {
-        return Math.max(0.0, calculateRawEngagement(post, commentCount) - timePenalty(post.getCreateDatetime()));
+    public double calculateGlobalScore(Post post, int likeCount, int commentCount) {
+        return Math.max(0.0,
+                calculateRawEngagement(post, likeCount, commentCount) - timePenalty(post.getCreateDatetime()));
     }
 
     /**
@@ -58,11 +57,12 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
     @Override
-    public double calculateFinalScore(Post post, int commentCount,
+    public double calculateFinalScore(Post post, int likeCount, int commentCount,
                                       Map<String, Double> normalizedWeights,
+                                      List<String> postTags,
                                       boolean isFollowingAuthor) {
-        double globalScore = calculateGlobalScore(post, commentCount);
-        double affinity = calculatePersonalAffinity(normalizedWeights, post.getTags());
+        double globalScore = calculateGlobalScore(post, likeCount, commentCount);
+        double affinity = calculatePersonalAffinity(normalizedWeights, postTags);
         double socialBoost = isFollowingAuthor ? SOCIAL_BOOST_MULTIPLIER : 1.0;
 
         return globalScore * affinity * socialBoost;

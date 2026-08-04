@@ -24,4 +24,5 @@ public class PostDTO {
     Boolean isShare = false;
     Boolean status = true;
     ActorSnapshotDTO owner;
+    List<String> tags = new ArrayList<>();
 }

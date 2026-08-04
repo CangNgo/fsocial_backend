@@ -5,7 +5,6 @@ import com.fsocial.postservice.dto.replyComment.LikeReplyCommentDTO;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentRequest;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentResponse;
 import com.fsocial.postservice.dto.replyComment.ReplyCommentUpdateDTORequest;
-import com.fsocial.postservice.entity.ReplyComment;
 import com.fsocial.postservice.services.ReplyCommentService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -15,7 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -46,15 +44,13 @@ public class ReplyCommentController {
     }
 
     @PostMapping
-    public ApiResponse<ReplyComment> replyComment(
+    public ApiResponse<ReplyCommentResponse> replyComment(
             @AuthenticationPrincipal Jwt jwt,
             ReplyCommentRequest request
-    ) throws IOException {
+    ) {
         request.setUserId(jwt.getSubject());
-        ReplyComment response = replyCommentService.addReplyComment(request);
-
-        return ApiResponse.<ReplyComment>builder()
-                .data(response)
+        return ApiResponse.<ReplyCommentResponse>builder()
+                .data(replyCommentService.addReplyComment(request))
                 .dateTime(LocalDateTime.now())
                 .message("Reply comment thành công")
                 .build();
@@ -69,14 +65,13 @@ public class ReplyCommentController {
     }
 
     @PutMapping
-    public ApiResponse<ReplyComment> updateReplyComment(
+    public ApiResponse<ReplyCommentResponse> updateReplyComment(
             @AuthenticationPrincipal Jwt jwt,
             ReplyCommentUpdateDTORequest request
     ) {
         request.setUserId(jwt.getSubject());
-        ReplyComment update = replyCommentService.updateReplyComment(request);
-        return ApiResponse.<ReplyComment>builder()
-                .data(update)
+        return ApiResponse.<ReplyCommentResponse>builder()
+                .data(replyCommentService.updateReplyComment(request))
                 .message("Update reply comment successfully")
                 .build();
     }

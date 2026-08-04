@@ -1,35 +1,67 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Gộp cả comment gốc và reply vào một bảng: parent_id NULL = comment gốc,
+ * khác NULL = reply. Thay cho mảng embedded {@code replies[]} của MongoDB.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "comment")
-@Builder
+@Entity
+@Table(name = "comment")
+@SuperBuilder
 public class Comment extends AbstractEntity<String> {
-    @Field("postId")
+
+    @Column(name = "post_id", length = 36, nullable = false)
     String postId;
-    @Field("userId")
-    String userId;
-    @Field("content")
-    Content content;
-    @Field("likes")
-    List<String> likes = new ArrayList<>();
-    @Field("created_datetime")
-    LocalDateTime createDatetime;
-    @Field("reply")
-    Boolean reply;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    Comment parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createDatetime ASC")
     @Builder.Default
-    @Field("replies")
-    List<ReplyComment> replies = new ArrayList<>();
+    List<Comment> replies = new ArrayList<>();
+
+    @Column(name = "user_id", length = 36, nullable = false)
+    String userId;
+
+    @Column(name = "text", columnDefinition = "text")
+    String text;
+
+    @Column(name = "html", columnDefinition = "text")
+    String html;
+
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ord ASC")
+    @Builder.Default
+    List<CommentMedia> media = new ArrayList<>();
+
+    @Column(name = "create_datetime", nullable = false)
+    @Builder.Default
+    LocalDateTime createDatetime = LocalDateTime.now();
+
+    /** Suy ra từ parent thay vì lưu cột riêng như bản Mongo. */
+    @Transient
+    public boolean isReply() {
+        return parent != null;
+    }
+
+    public void addMedia(CommentMedia item) {
+        item.setComment(this);
+        item.setOrd(media.size());
+        media.add(item);
+    }
 }

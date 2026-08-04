@@ -1,36 +1,39 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
-import java.util.UUID;
 
-@Document(collection = "refresh_tokens")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
+@Entity
+@Table(name = "refresh_token")
 public class RefreshToken {
-    @Id
-    String id = UUID.randomUUID().toString();
 
-    @Field("token")
+    @Id
+    @GeneratedValue
+    @UuidGenerator
+    @Column(length = 36)
+    String id;
+
+    @Column(name = "token", nullable = false, unique = true, columnDefinition = "text")
     String token;
 
-    @Field("username")
+    @Column(name = "username", length = 64, nullable = false)
     String username;
 
-    @Field("expiry_date")
+    @Column(name = "expiry_date", nullable = false)
     Instant expiryDate;
 
-    @Field("user_agent")
+    @Column(name = "user_agent", columnDefinition = "text")
     String userAgent;
 
-    @Field("ip_address")
+    @Column(name = "ip_address", length = 64)
     String ipAddress;
 }

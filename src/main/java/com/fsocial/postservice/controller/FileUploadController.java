@@ -1,7 +1,7 @@
 package com.fsocial.postservice.controller;
 
 import com.fsocial.postservice.dto.ApiResponse;
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
 import com.fsocial.postservice.enums.ResponseStatus;
 import com.fsocial.postservice.services.UploadMedia;
 import lombok.AccessLevel;
@@ -27,10 +27,10 @@ public class FileUploadController {;
     UploadMedia uploadImage;
 
     @PostMapping
-    public ApiResponse<List<MediaItem>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) {
-            MediaItem[] mediaItems = uploadImage.uploadMedia(file);
+    public ApiResponse<List<MediaItemDTO>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) {
+            MediaItemDTO[] mediaItems = uploadImage.uploadMedia(file);
             log.info("Upload file successfull: {}", (Object) mediaItems);
-            return ApiResponse.<List<MediaItem>>builder()
+            return ApiResponse.<List<MediaItemDTO>>builder()
                             .data(Arrays.asList(mediaItems))
                             .message("Upload file successful")
                             .dateTime(LocalDateTime.now())
@@ -38,8 +38,8 @@ public class FileUploadController {;
     }
 
     @PostMapping("/messages")
-    public ApiResponse<List<MediaItem>> uploadImageInMessage(@RequestParam MultipartFile[] images) {
-        MediaItem[] mediaItems = uploadImage.uploadMedia(images);
+    public ApiResponse<List<MediaItemDTO>> uploadImageInMessage(@RequestParam MultipartFile[] images) {
+        MediaItemDTO[] mediaItems = uploadImage.uploadMedia(images);
         return ApiResponse.buildApiResponse(Arrays.asList(mediaItems), ResponseStatus.SUCCESS);
     }
 }

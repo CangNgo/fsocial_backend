@@ -5,10 +5,12 @@ import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.dto.notification.NotificationDTO;
+import com.fsocial.postservice.dto.post.ContentResponse;
+import com.fsocial.postservice.dto.post.MediaItemDTO;
 import com.fsocial.postservice.entity.Account;
 import com.fsocial.postservice.entity.Comment;
-import com.fsocial.postservice.entity.Content;
-import com.fsocial.postservice.entity.MediaItem;
+import com.fsocial.postservice.entity.CommentLike;
+import com.fsocial.postservice.entity.CommentMedia;
 import com.fsocial.postservice.entity.Post;
 import com.fsocial.postservice.enums.NotificationType;
 import com.fsocial.postservice.exception.AppException;
@@ -16,6 +18,7 @@ import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.publisher.InteractionEventPublisher;
 import com.fsocial.postservice.publisher.NotificationEvent;
 import com.fsocial.postservice.repository.AccountRepository;
+import com.fsocial.postservice.repository.CommentLikeRepository;
 import com.fsocial.postservice.repository.CommentRepository;
 import com.fsocial.postservice.repository.PostRepository;
 import com.fsocial.postservice.services.AccountService;
@@ -23,24 +26,18 @@ import com.fsocial.postservice.services.CommentService;
 import com.fsocial.postservice.services.RedisService;
 import com.fsocial.postservice.util.DisplayNameUtils;
 import com.fsocial.postservice.util.MediaUploadUtils;
+import com.fsocial.postservice.util.PostUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -50,9 +47,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CommentServiceImpl implements CommentService {
     CommentRepository commentRepository;
+    CommentLikeRepository commentLikeRepository;
     MediaUploadUtils mediaUploadUtils;
     PostRepository postRepository;
-    MongoTemplate mongoTemplate;
     AccountService accountService;
     AccountRepository accountRepository;
     RedisService redisService;
@@ -61,27 +58,33 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public Comment addComment(CommentDTORequest request) {
-        MediaItem[] mediaUrls = mediaUploadUtils.uploadValidMedia(request.getMedia());
+    public CommentResponse addComment(CommentDTORequest request) {
+        MediaItemDTO[] mediaItems = mediaUploadUtils.uploadValidMedia(request.getMedia());
 
         String postId = request.getPostId();
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException("Không tìm thấy bài đăng", StatusCode.POST_NOT_FOUND));
 
-        Comment commentRequest = buildComment(request, mediaUrls);
-        commentRequest.setCreatedAt(LocalDateTime.now());
-        commentRequest.setLikes(new ArrayList<>());
-        commentRequest.setCreateDatetime(LocalDateTime.now());
-        Comment savedComment = commentRepository.save(commentRequest);
+        Comment comment = Comment.builder()
+                .postId(postId)
+                .userId(request.getUserId())
+                .text(request.getText())
+                .html(request.getHtml())
+                .createDatetime(LocalDateTime.now())
+                .build();
+        attachMedia(comment, mediaItems);
+        Comment saved = commentRepository.save(comment);
 
-        redisService.personalization(savedComment.getUserId(), post.getOwner().getUserId());
+        String ownerId = post.getOwner().getId();
+        redisService.personalization(saved.getUserId(), ownerId);
 
         // Publish async COMMENT event for score + interest update
         interactionEventPublisher.publish(postId, request.getUserId(), "COMMENT", post.getTags());
 
-        notifyOwner(post.getOwner().getUserId(), request.getUserId(), NotificationType.COMMENT_SINGLE);
+        notifyOwner(ownerId, request.getUserId(), NotificationType.COMMENT_SINGLE);
 
-        return savedComment;
+        Account owner = accountRepository.findById(saved.getUserId()).orElse(null);
+        return buildCommentResponse(saved, owner, 0, 0, false);
     }
 
     /** Bỏ qua nếu tự bình luận trên bài viết của chính mình */
@@ -90,86 +93,65 @@ public class CommentServiceImpl implements CommentService {
         notificationEvent.publishCreateNotification(new NotificationDTO(ownerId, actorId, type));
     }
 
-    private Comment buildComment(CommentDTORequest request, MediaItem[] mediaUrls) {
-        return Comment.builder()
-                .likes(new ArrayList<>())
-                .reply(false)
-                .postId(request.getPostId())
-                .userId(request.getUserId())
-                .content(Content.builder()
-                        .text(request.getText())
-                        .media(mediaUrls != null && mediaUrls.length > 0 ? Arrays.asList(mediaUrls) : null)
-                        .html(request.getHtml())
-                        .build())
-                .build();
-    }
-
-    @Override
-    public boolean toggleLikeComment(String commentId, String userId) {
-        boolean existed = commentRepository.existsByIdAndLikes(commentId, userId);
-        if (!existed) {
-            this.addLikeComment(commentId, userId);
-            return true;
-        } else {
-            this.removeLikeComment(commentId, userId);
-            return false;
+    private void attachMedia(Comment comment, MediaItemDTO[] mediaItems) {
+        if (mediaItems == null) return;
+        for (MediaItemDTO item : mediaItems) {
+            if (item == null) continue;
+            comment.addMedia(CommentMedia.builder()
+                    .url(item.getUrl())
+                    .type(item.getMediaType())
+                    .width(item.getWidth())
+                    .height(item.getHeight())
+                    .build());
         }
     }
 
     @Override
-    public Integer countLike(String commentId, String userId) {
-        Integer count = commentRepository.countLikes(commentId);
-        return count == null ? 0 : count;
+    @Transactional
+    public boolean toggleLikeComment(String commentId, String userId) {
+        if (!commentExist(commentId))
+            throw new AppException("Bình luận không tồn tại", StatusCode.COMMENT_NOT_FOUND);
+        if (!userExists(userId))
+            throw new AppException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
+
+        if (!commentLikeRepository.existsByCommentIdAndUserId(commentId, userId)) {
+            // PK (comment_id, user_id) đảm bảo idempotent
+            commentLikeRepository.save(new CommentLike(commentId, userId));
+            return true;
+        }
+        commentLikeRepository.deleteByCommentIdAndUserId(commentId, userId);
+        return false;
     }
 
     @Override
-    public Comment updateComment(CommentUpdateDTORequest comment) {
-        if (userExists(comment.getUserId()))
+    public Integer countLike(String commentId, String userId) {
+        return commentLikeRepository.countByCommentId(commentId);
+    }
+
+    @Override
+    @Transactional
+    public CommentResponse updateComment(CommentUpdateDTORequest request) {
+        if (!userExists(request.getUserId()))
             throw new AppException("User không tồn tại", StatusCode.USER_NOT_FOUND);
 
-        Comment update = commentRepository.findById(comment.getCommentId()).orElseThrow(() -> new AppException("Không tìm thấy comment", StatusCode.COMMENT_NOT_FOUND));
-        //cập nhật text
-        update.setContent(Content.builder()
-                        .html(comment.getHtml())
-                        .text(comment.getText())
-                .build());
-        return commentRepository.save(update);
+        Comment comment = commentRepository.findById(request.getCommentId())
+                .orElseThrow(() -> new AppException("Không tìm thấy comment", StatusCode.COMMENT_NOT_FOUND));
+        comment.setText(request.getText());
+        comment.setHtml(request.getHtml());
+        return convertToCommentResponse(commentRepository.save(comment));
     }
 
     @Override
+    @Transactional
     public String deleteComment(String commentID) {
         commentRepository.findById(commentID).ifPresent(comment -> {
+            // FK comment.parent_id ON DELETE CASCADE dọn reply; comment_like/comment_media cascade theo
             commentRepository.deleteById(commentID);
             // Publish COMMENT_DELETE so score + interest are recomputed
-            postRepository.findById(comment.getPostId()).ifPresent(post ->
-                    interactionEventPublisher.publish(comment.getPostId(),
-                            comment.getUserId(), "COMMENT_DELETE", post.getTags()));
+            interactionEventPublisher.publish(comment.getPostId(), comment.getUserId(), "COMMENT_DELETE",
+                    postRepository.findById(comment.getPostId()).map(Post::getTags).orElse(List.of()));
         });
         return "Xóa comment thành công";
-    }
-
-    public void addLikeComment(String commentId, String userId) {
-        boolean check = this.userExists(userId);
-        if (!this.commentExist(commentId))
-            throw new AppException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
-        if (!this.userExists(userId))
-            throw new AppException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
-
-        Query query = new Query(Criteria.where("_id").is(commentId));
-        Update update = new Update().addToSet("likes", userId);
-        mongoTemplate.updateFirst(query, update, Comment.class);
-
-    }
-
-    public void removeLikeComment(String commentId, String userId) {
-        if (!this.commentExist(commentId))
-            throw new AppException("Bình luân không tồn tại", StatusCode.COMMENT_NOT_FOUND);
-        if (!this.userExists(userId))
-            throw new AppException("Tài khoản người dùng không tồn tại", StatusCode.USER_NOT_FOUND);
-
-        Query query = new Query(Criteria.where("_id").is(commentId));
-        Update update = new Update().pull("likes", userId);
-        mongoTemplate.updateFirst(query, update, Comment.class);
     }
 
     public boolean userExists(String userId) {
@@ -181,50 +163,83 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CommentResponse> getComments(String postId) {
-        List<Comment> comments = commentRepository.findByPostId(postId);
-
-
-
-        return toCommentResponses(comments, currentUserId());
+        return toCommentResponses(commentRepository.findByPostId(postId), currentUserId());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CommentResponse convertToCommentResponse(Comment comment) {
         Account owner = accountRepository.findById(comment.getUserId()).orElse(null);
-        return buildCommentResponse(comment, owner, currentUserId());
+        String requesterId = currentUserId();
+        return buildCommentResponse(comment, owner,
+                commentLikeRepository.countByCommentId(comment.getId()),
+                commentRepository.findByParentId(comment.getId()).size(),
+                requesterId != null
+                        && commentLikeRepository.existsByCommentIdAndUserId(comment.getId(), requesterId));
     }
 
     @Override
+    @Transactional
     public List<CommentDTO> deleteCommentByPostId(String postId) {
-        commentRepository.deleteAll(commentRepository.findByPostId(postId));
+        commentRepository.deleteByPostId(postId);
         return List.of();
     }
 
     private List<CommentResponse> toCommentResponses(List<Comment> comments, String requesterId) {
         if (comments.isEmpty()) return List.of();
 
+        List<String> commentIds = comments.stream().map(Comment::getId).toList();
         List<String> ownerIds = comments.stream().map(Comment::getUserId).distinct().toList();
+
         Map<String, Account> accountMap = accountRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
 
+        Map<String, Integer> likeCountMap = commentLikeRepository.countByCommentIdIn(commentIds).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).intValue()));
+
+        Map<String, Integer> replyCountMap = commentRepository.countByParentIdIn(commentIds).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> ((Number) r[1]).intValue()));
+
+        Set<String> liked = requesterId == null
+                ? Set.of()
+                : new HashSet<>(commentLikeRepository.findLikedCommentIds(requesterId, commentIds));
+
         return comments.stream()
-                .map(c -> buildCommentResponse(c, accountMap.get(c.getUserId()), requesterId))
+                .map(c -> buildCommentResponse(c, accountMap.get(c.getUserId()),
+                        likeCountMap.getOrDefault(c.getId(), 0),
+                        replyCountMap.getOrDefault(c.getId(), 0),
+                        liked.contains(c.getId())))
                 .collect(Collectors.toList());
     }
 
-    private CommentResponse buildCommentResponse(Comment comment, Account owner, String requesterId) {
-        List<String> likes = comment.getLikes() == null ? List.of() : comment.getLikes();
+    private CommentResponse buildCommentResponse(Comment comment, Account owner,
+                                                 int likeCount, int replyCount, boolean liked) {
         return CommentResponse.builder()
                 .id(comment.getId())
-                .content(comment.getContent())
-                .countLikes(likes.size())
+                .postId(comment.getPostId())
+                .content(buildContent(comment))
+                .countLikes(likeCount)
+                .countReplies(replyCount)
                 .displayName(DisplayNameUtils.build(owner))
                 .userId(comment.getUserId())
-                .reply(Boolean.TRUE.equals(comment.getReply()))
-                .like(requesterId != null && likes.contains(requesterId))
-                .avatar(owner.getAvatar())
+                .reply(comment.isReply())
+                .like(liked)
+                .avatar(owner == null ? null : owner.getAvatar())
                 .createDatetime(comment.getCreateDatetime())
+                .build();
+    }
+
+    static ContentResponse buildContent(Comment comment) {
+        List<CommentMedia> media = comment.getMedia();
+        return ContentResponse.builder()
+                .text(comment.getText())
+                .html(comment.getHtml())
+                .media(media == null ? List.of() : media.stream()
+                        .filter(Objects::nonNull)
+                        .map(m -> PostUtils.toMediaResponse(m.getType(), m.getUrl(), m.getWidth(), m.getHeight()))
+                        .toList())
                 .build();
     }
 

@@ -1,16 +1,23 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.experimental.SuperBuilder;
 
-@Document(collection = "email_template_field")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class EmailTemplateField extends AbstractEntity<String>  {
+@Entity
+@Table(name = "email_template_field")
+@SuperBuilder
+public class EmailTemplateField extends AbstractEntity<String> {
+
+    @Column(name = "name", length = 128, nullable = false)
     String name;
+
+    @Column(name = "description", columnDefinition = "text")
     String description;
 }

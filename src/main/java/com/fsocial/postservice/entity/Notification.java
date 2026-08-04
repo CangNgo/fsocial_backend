@@ -1,80 +1,84 @@
 package com.fsocial.postservice.entity;
 
 import com.fsocial.postservice.enums.NotificationType;
-import com.fsocial.postservice.enums.PaymentStatus;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Document(collection = "notifications")
-@CompoundIndexes({
-        @CompoundIndex(name = "idx_recipient_unread_created",
-                def = "{'recipientId': 1, 'isRead': 1, 'createdAt': -1}"),
-        @CompoundIndex(name = "idx_recipient_created",
-                def = "{'recipientId': 1, 'createdAt': -1}"),
-        @CompoundIndex(name = "idx_recipient_group",
-                def = "{'recipientId': 1, 'groupKey': 1, 'createdAt': -1}")
-})
 @Getter @Setter @Builder
 @NoArgsConstructor @AllArgsConstructor
+@Entity
+@Table(name = "notification")
+@EntityListeners(AuditingEntityListener.class)
 public class Notification {
 
     @Id
-    private String id;                       // ObjectId, ánh xạ sang String
+    @GeneratedValue
+    @UuidGenerator
+    @Column(length = 36)
+    private String id;
 
-    @Field("recipient_id")
+    @Column(name = "recipient_id", length = 36, nullable = false)
     private String recipientId;
 
     /** Reference — lookup Account theo id này khi đọc để lấy displayName/avatar */
-    @Field("sender_id")
+    @Column(name = "sender_id", length = 36)
     private String senderId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 32, nullable = false)
     private NotificationType type;
 
-    /** Polymorphic reference: type + id của entity gốc */
-    private EntityRef entity;
-
-    @Field("group_key")
+    @Column(name = "group_key", length = 128)
     private String groupKey;
 
     /** Khi gom nhóm: list senderId gần nhất (giới hạn ~5 người) */
-    @Field("aggregated_sender_ids")
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "notification_sender",
+            joinColumns = @JoinColumn(name = "notification_id"))
+    @OrderColumn(name = "ord")
+    @Column(name = "sender_id", length = 36, nullable = false)
     @Builder.Default
     private List<String> aggregatedSenderIds = new ArrayList<>();
 
+    @Column(name = "title", columnDefinition = "text")
     private String title;
+
+    @Column(name = "body", columnDefinition = "text")
     private String body;
 
     /** Payload linh hoạt: deep link, FCM custom data, image urls... */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "notification_metadata",
+            joinColumns = @JoinColumn(name = "notification_id"))
+    @MapKeyColumn(name = "meta_key", length = 64)
+    @Column(name = "meta_value", columnDefinition = "text")
     @Builder.Default
-    private Map<String, Object> metadata = new HashMap<>();
+    private Map<String, String> metadata = new HashMap<>();
 
-    @Field("is_read")
+    @Column(name = "is_read", nullable = false)
     private boolean isRead;
 
-    @Field("read_at")
+    @Column(name = "read_at")
     private Instant readAt;
 
     @CreatedDate
-    @Field("created_at")
+    @Column(name = "created_at")
     private Instant createdAt;
 
     @LastModifiedDate
-    @Field("updated_at")
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @Field("pushed")
+    @Column(name = "pushed", nullable = false)
     private boolean pushed;
 }

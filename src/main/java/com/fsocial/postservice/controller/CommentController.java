@@ -5,8 +5,6 @@ import com.fsocial.postservice.dto.comment.CommentDTORequest;
 import com.fsocial.postservice.dto.comment.CommentResponse;
 import com.fsocial.postservice.dto.comment.CommentUpdateDTORequest;
 import com.fsocial.postservice.dto.comment.LikeCommentDTO;
-import com.fsocial.postservice.entity.Comment;
-import com.fsocial.postservice.exception.StatusCode;
 import com.fsocial.postservice.services.CommentService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -17,8 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,14 +29,13 @@ public class CommentController {
     CommentService commentService;
 
     @PostMapping
-    public ApiResponse<Comment> createComment(
+    public ApiResponse<CommentResponse> createComment(
             @AuthenticationPrincipal Jwt jwt,
             CommentDTORequest request
     ) {
         request.setUserId(jwt.getSubject());
-        Comment comment = commentService.addComment(request);
-        return ApiResponse.<Comment>builder()
-                .data(comment)
+        return ApiResponse.<CommentResponse>builder()
+                .data(commentService.addComment(request))
                 .message("Comment created successfully")
                 .build();
     }
@@ -62,15 +57,14 @@ public class CommentController {
     }
 
     @PutMapping
-    public ApiResponse<Comment> updateComment(
+    public ApiResponse<CommentResponse> updateComment(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CommentUpdateDTORequest dto
     ) {
         dto.setUserId(jwt.getSubject());
-        Comment update = commentService.updateComment(dto);
-        return ApiResponse.<Comment>builder()
+        return ApiResponse.<CommentResponse>builder()
                 .message("Comment updated successfully")
-                .data(update)
+                .data(commentService.updateComment(dto))
                 .build();
     }
 

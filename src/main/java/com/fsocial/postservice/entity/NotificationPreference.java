@@ -1,31 +1,35 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import lombok.experimental.SuperBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
-@Document(collection = "notification_preferences")
-@Getter @Setter @Builder
+@Getter @Setter @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
-public class NotificationPreference extends AbstractEntity<String>{
-    @Indexed(unique = true)
-    @Field("user_id")
+@Entity
+@Table(name = "notification_preference")
+public class NotificationPreference extends AbstractEntity<String> {
+
+    @Column(name = "user_id", length = 36, nullable = false, unique = true)
     private String userId;
 
     /** Key là tên NotificationType (LIKE, COMMENT...), value là setting per-channel */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "preference_setting",
+            joinColumns = @JoinColumn(name = "preference_id"))
+    @MapKeyColumn(name = "notification_type", length = 32)
     @Builder.Default
     private Map<String, ChannelSettings> settings = new HashMap<>();
 
-    @Field("quiet_hours_start")
+    @Column(name = "quiet_hours_start", length = 8)
     private String quietHoursStart;     // "22:00"
 
-    @Field("quiet_hours_end")
+    @Column(name = "quiet_hours_end", length = 8)
     private String quietHoursEnd;       // "07:00"
 
+    @Column(name = "timezone", length = 64)
     private String timezone;            // "Asia/Ho_Chi_Minh"
 }

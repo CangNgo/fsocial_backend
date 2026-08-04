@@ -1,19 +1,29 @@
 package com.fsocial.postservice.repository;
 
 import com.fsocial.postservice.entity.SeenPost;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface SeenPostRepository extends MongoRepository<SeenPost, String> {
+public interface SeenPostRepository extends JpaRepository<SeenPost, SeenPost.Key> {
 
-    @Query(value = "{'user_id': ?0}", fields = "{'post_id': 1, '_id': 0}")
-    List<SeenPost> findByUserId(String userId);
+    @Query("select s.postId from SeenPost s where s.userId = :userId")
+    List<String> findPostIdsByUserId(@Param("userId") String userId);
 
     boolean existsByUserIdAndPostId(String userId, String postId);
 
-    void deleteByUserId(String userId);
+    @Modifying
+    @Query("delete from SeenPost s where s.userId = :userId")
+    int deleteByUserId(@Param("userId") String userId);
+
+    /** Thay TTL index của Mongo — gọi từ {@code SeenPostPurgeScheduler}. */
+    @Modifying
+    @Query("delete from SeenPost s where s.seenAt < :threshold")
+    int deleteBySeenAtBefore(@Param("threshold") LocalDateTime threshold);
 }

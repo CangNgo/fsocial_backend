@@ -1,20 +1,16 @@
 package com.fsocial.postservice.entity;
 
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Tracks which posts a user has already seen.
- * TTL index on seenAt causes MongoDB to auto-delete after 30 days.
- * Index creation is handled by MongoIndexInitializer on startup.
+ * Postgres không có TTL index — dọn bằng {@code SeenPostPurgeScheduler} (14 ngày).
  */
 @Getter
 @Setter
@@ -22,23 +18,41 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document(collection = "seen_posts")
-@CompoundIndexes({
-    @CompoundIndex(name = "idx_userId_postId", def = "{'user_id': 1, 'post_id': 1}", unique = true)
-})
+@Entity
+@Table(name = "seen_post")
+@IdClass(SeenPost.Key.class)
 public class SeenPost {
 
     @Id
-    String id;
-
-    @Field("user_id")
-    @Indexed
+    @Column(name = "user_id", length = 36)
     String userId;
 
-    @Field("post_id")
+    @Id
+    @Column(name = "post_id", length = 36)
     String postId;
 
-    // TTL index created programmatically in MongoIndexInitializer (expireAfterSeconds = 2592000)
-    @Field("seen_at")
-    LocalDateTime seenAt;
+    @Column(name = "seen_at", nullable = false)
+    @Builder.Default
+    LocalDateTime seenAt = LocalDateTime.now();
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Key implements Serializable {
+        private String userId;
+        private String postId;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Key key)) return false;
+            return Objects.equals(userId, key.userId) && Objects.equals(postId, key.postId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(userId, postId);
+        }
+    }
 }
