@@ -1,0 +1,45 @@
+package com.fsocial.controller;
+
+import com.fsocial.dto.ApiResponse;
+import com.fsocial.dto.post.MediaItemDTO;
+import com.fsocial.enums.ResponseStatus;
+import com.fsocial.services.UploadMedia;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+@RestController
+@RequestMapping("/upload_file")
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
+public class FileUploadController {;
+    UploadMedia uploadImage;
+
+    @PostMapping
+    public ApiResponse<List<MediaItemDTO>> uploadFile(@RequestParam("fileUpload") MultipartFile[] file) {
+            MediaItemDTO[] mediaItems = uploadImage.uploadMedia(file);
+            log.info("Upload file successfull: {}", (Object) mediaItems);
+            return ApiResponse.<List<MediaItemDTO>>builder()
+                            .data(Arrays.asList(mediaItems))
+                            .message("Upload file successful")
+                            .dateTime(LocalDateTime.now())
+                    .build();
+    }
+
+    @PostMapping("/messages")
+    public ApiResponse<List<MediaItemDTO>> uploadImageInMessage(@RequestParam MultipartFile[] images) {
+        MediaItemDTO[] mediaItems = uploadImage.uploadMedia(images);
+        return ApiResponse.buildApiResponse(Arrays.asList(mediaItems), ResponseStatus.SUCCESS);
+    }
+}

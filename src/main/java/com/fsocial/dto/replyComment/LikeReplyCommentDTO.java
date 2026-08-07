@@ -1,0 +1,16 @@
+package com.fsocial.dto.replyComment;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Builder
+public class LikeReplyCommentDTO {
+    @NotBlank(message = "Replycomment Id không được bỏ trống")
+    String replyCommentId;
+    String userId;
+}
