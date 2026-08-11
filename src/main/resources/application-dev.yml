@@ -20,6 +20,7 @@ app:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     apikey: ${CLOUDINARY_API_KEY}
     secret: ${CLOUDINARY_API_SECRET}
+  PAGE_LIMIT: ${PAGE_LIMIT}
 
 server:
   servlet:
@@ -100,7 +101,7 @@ springdoc:
   packages-to-scan: com.fsocial.postservice.controller
 jwt:
   signerKey: ${JWT_SIGNER_KEY}
-  duration: 60
+  duration: 3
   expired-time: 7
 
 firebase:

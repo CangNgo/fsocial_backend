@@ -1,10 +1,12 @@
 package com.fsocial.services.impl;
 
+import com.fsocial.dto.ApiDataCursor;
+import com.fsocial.dto.Attachments.AttachementProfileDTO;
 import com.fsocial.dto.Attachments.AttachmentDTO;
+import com.fsocial.dto.page.AttachmentsRequest;
 import com.fsocial.entity.Attachments;
 import com.fsocial.entity.Post;
 import com.fsocial.enums.AttachmentType;
-import com.fsocial.enums.MediaType;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;
 import com.fsocial.mapper.AttachmentMapper;
@@ -15,9 +17,14 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.ScrollPosition;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Window;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +48,6 @@ public class AttachmentsServiceImpl implements AttachmentsService {
                 .width(dto.getWidth())
                 .height(dto.getHeight())
                 .type(dto.getType())
-                .mediaType(dto.getMediaType())
                 .build()));
     }
 
@@ -56,9 +62,42 @@ public class AttachmentsServiceImpl implements AttachmentsService {
     }
 
     @Override
-    public List<AttachmentDTO> findAttachmentByFileTypeAndOwnerId(MediaType fileType, String userId) {
+    public ApiDataCursor<AttachmentDTO> getAttachmentByOwnerId(AttachmentsRequest dto, String userId) {
 
-        return List.of();
+
+        Sort sort = Sort.by("createdAt").descending().and(Sort.by("id").descending());
+        ScrollPosition position;
+
+        if (dto.getLastItemId().isEmpty() && dto.getCreatedAt().isEmpty()) {
+            // Trang đầu tiên - chưa có cursor
+            position = ScrollPosition.keyset();
+        } else {
+            // Trang tiếp theo - có cursor
+            position = ScrollPosition.forward(Map.of("createdAt", dto.getCreatedAt(), "id", dto.getLastItemId()));
+        }
+
+        Window<AttachementProfileDTO> listItem = attachmentsRepository
+                .findByOwnerIdAndResourceType(userId, dto.getResourceType().toLowerCase(), sort, position);
+        List<AttachmentDTO> data = listItem.getContent().stream()
+                .map(p -> AttachmentDTO.builder()
+                        .id(p.getId())
+                        .publicId(p.getPublicId())
+                        .url(p.getUrl())
+                        .resourceType(p.getResourceType())
+                        .fileType(p.getFileType())
+                        .size(p.getSize())
+                        .ownerId(p.getOwnerId())
+                        .ord(p.getOrd())
+                        .width(p.getWidth())
+                        .height(p.getHeight())
+                        .type(p.getType())
+                        .createdAt(p.getCreatedAt())
+                        .build())
+                .toList();
+        return ApiDataCursor.<AttachmentDTO>builder()
+                .items(data)
+                .hasMore(listItem.hasNext())
+                .build();
     }
 
 //    @Override

@@ -44,6 +44,9 @@ public enum StatusCode implements CodeEnum {
     EMAIL_IS_NOT_VERIFY(309, "Email mail is not verify", HttpStatus.BAD_REQUEST),
     INVALID_GOOGLE_TOKEN(403, "Invalid or expired Google token", HttpStatus.FORBIDDEN),
     ROLE_NOT_FOUND(310, "Role not found", HttpStatus.NOT_FOUND),
+    CONVERSATION_NOT_FOUND(313, "Conversation not found", HttpStatus.NOT_FOUND),
+    NOT_CONVERSATION_MEMBER(314, "You are not a member of this conversation", HttpStatus.FORBIDDEN),
+    MESSAGE_SEND_FAILED(315, "Send message failed", HttpStatus.BAD_REQUEST),
     ;
     private final int code;
     private final String message;

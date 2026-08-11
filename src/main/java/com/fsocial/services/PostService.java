@@ -1,9 +1,9 @@
 package com.fsocial.services;
 
 import com.fsocial.dto.post.*;
-import com.fsocial.postservice.dto.post.*;
 import com.fsocial.dto.response.SearchPageResponse;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PostService {
@@ -24,9 +24,11 @@ public interface PostService {
 
     PostResponse getPostById(String postId, String userId);
 
-    List<PostStatisticsDTO> countStatisticsPostToday(java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+    List<PostStatisticsDTO> countStatisticsPostToday(LocalDateTime startDate, LocalDateTime endDate);
 
-    List<PostStatisticsLongDateDTO> countStatisticsPostLongDay(java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+    List<PostStatisticsLongDateDTO> countStatisticsPostLongDay(LocalDateTime startDate, LocalDateTime endDate);
 
     List<PostResponse> getPostByFollowing(String userId);
+
+    List<PostResponse> getMyPost(String userId);
 }

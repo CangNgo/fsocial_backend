@@ -9,6 +9,7 @@ import com.fsocial.entity.Account;
 import com.fsocial.entity.Comment;
 import com.fsocial.entity.CommentLike;
 import com.fsocial.entity.CommentMedia;
+import com.fsocial.enums.MediaType;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;
 import com.fsocial.repository.AccountRepository;
@@ -78,7 +79,7 @@ public class ReplyCommentServiceImpl implements ReplyCommentService {
             if (item == null) continue;
             comment.addMedia(CommentMedia.builder()
                     .url(item.getUrl())
-                    .type(item.getMediaType())
+                    .type(MediaType.fromValue(item.getType()))
                     .width(item.getWidth())
                     .height(item.getHeight())
                     .build());

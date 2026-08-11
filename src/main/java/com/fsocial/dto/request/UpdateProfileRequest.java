@@ -20,4 +20,5 @@ public class UpdateProfileRequest {
 
     int gender;
     String address;
+    String bio;
 }

@@ -53,11 +53,11 @@ public interface AccountRepository extends JpaRepository<Account, String> {
     record HourCountResult(Integer _id, Integer count) {}
     record DateCountResult(String _id, Long count) {}
 
-    @Query("select new com.fsocial.postservice.dto.ActorSnapshotDTO(a.id, a.displayName, a.avatar) from Account a where a.id = :userId")
+    @Query("select new com.fsocial.dto.ActorSnapshotDTO(a.id, a.displayName, a.avatar) from Account a where a.id = :userId")
     Optional<ActorSnapshotDTO> findOwnerById(@Param("userId") String userId);
 
     /** Batch lookup — tránh N+1 khi build danh sách post. */
-    @Query("select new com.fsocial.postservice.dto.ActorSnapshotDTO(a.id, a.displayName, a.avatar) from Account a where a.id in :userIds")
+    @Query("select new com.fsocial.dto.ActorSnapshotDTO(a.id, a.displayName, a.avatar) from Account a where a.id in :userIds")
     List<ActorSnapshotDTO> findOwnersByIdIn(@Param("userIds") List<String> userIds);
 
     @Query("""

@@ -4,7 +4,7 @@ import com.fsocial.dto.post.PostOriginResponse;
 import com.fsocial.dto.post.PostResponse;
 import com.fsocial.entity.Account;
 import com.fsocial.entity.Post;
-import com.fsocial.postservice.entity.*;
+import com.fsocial.entity.*;
 import com.fsocial.repository.*;
 import com.fsocial.services.FeedService;
 import com.fsocial.services.InterestGraphService;

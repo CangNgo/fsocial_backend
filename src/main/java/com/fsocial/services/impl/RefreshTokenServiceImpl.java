@@ -40,20 +40,20 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     @Transactional
-    public RefreshToken createRefreshToken(String username, String userAgent, String ipAddress) {
-        accountRepository.findByUsername(username)
+    public RefreshToken createRefreshToken(String accountId, String userAgent, String ipAddress) {
+        accountRepository.findById(accountId)
                 .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
-        long tokenCount = refreshTokenRepository.countByUsername(username);
+        long tokenCount = refreshTokenRepository.countByAccountId(accountId);
         int MAX_REFRESH_TOKENS = 5;
         if (tokenCount >= MAX_REFRESH_TOKENS) {
-            refreshTokenRepository.findFirstByUsernameOrderByExpiryDateAsc(username)
+            refreshTokenRepository.findFirstByAccountIdOrderByExpiryDateAsc(accountId)
                     .ifPresent(refreshTokenRepository::delete);
         }
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .token(generateRefreshToken())
-                .username(username)
+                .accountId(accountId)
                 .userAgent(userAgent)
                 .ipAddress(ipAddress)
                 .expiryDate(Instant.now().plus(expirationTime, ChronoUnit.DAYS))
@@ -89,7 +89,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         }
 
         return AuthenticationResponse.builder()
-                .accessToken(jwtService.generateToken(token.getUsername()))
+                .accessToken(jwtService.generateToken(token.getAccountId()))
                 .refreshToken(token.getToken())
                 .build();
     }

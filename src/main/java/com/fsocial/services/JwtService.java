@@ -1,7 +1,7 @@
 package com.fsocial.services;
 
 public interface JwtService {
-    String generateToken(String username);
+    String generateToken(String accountId);
     boolean verifyToken(String token);
     byte[] getSignerKey();
     String getUserId(String token);

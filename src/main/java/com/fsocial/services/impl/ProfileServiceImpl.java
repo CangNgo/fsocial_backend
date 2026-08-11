@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
@@ -54,6 +55,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional
     public AccountResponse updatePersonalInfo(UpdateProfileRequest request, String userId) {
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new AppException(StatusCode.USER_NOT_FOUND));
@@ -63,26 +65,20 @@ public class ProfileServiceImpl implements ProfileService {
         account.setDob(request.getDob());
         account.setGender(request.getGender());
         account.setAddress(request.getAddress());
+        account.setBio(request.getBio());
 
         Account updatedAccount = accountRepository.save(account);
 
         return AccountResponse.builder()
                 .id(updatedAccount.getId())
-                .username(updatedAccount.getUsername())
                 .firstName(updatedAccount.getFirstName())
                 .lastName(updatedAccount.getLastName())
-                .email(updatedAccount.getEmail())
                 .dob(updatedAccount.getDob() != null ? updatedAccount.getDob().toString() : null)
                 .gender(updatedAccount.getGender())
                 .address(updatedAccount.getAddress())
                 .displayName(DisplayNameUtils.build(updatedAccount))
-                .avatar(updatedAccount.getAvatar())
                 .background(updatedAccount.getBackground())
-                .isKOL(updatedAccount.isKOL())
-                .role(updatedAccount.getRole().getName())
                 .bio(updatedAccount.getBio())
-                .follower(new HashSet<>(followRepository.findFollowerIds(updatedAccount.getId())))
-                .following(new HashSet<>(followRepository.findFolloweeIds(updatedAccount.getId())))
                 .build();
     }
 

@@ -1,11 +1,14 @@
 package com.fsocial.controller;
 
 import com.fsocial.dto.ApiResponse;
+import com.fsocial.dto.post.PostResponse;
 import com.fsocial.dto.profile.ProfileResponse;
 import com.fsocial.dto.request.UpdateProfileRequest;
 import com.fsocial.dto.response.AccountResponse;
 import com.fsocial.services.AccountService;
+import com.fsocial.services.PostService;
 import com.fsocial.services.ProfileService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -14,6 +17,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -24,12 +29,22 @@ public class ProfileController {
 
     AccountService accountService;
     ProfileService profileService;
+    PostService postService;
 
     @GetMapping()
     public ApiResponse<AccountResponse> getProfile(@AuthenticationPrincipal Jwt jwt) {
 
         return ApiResponse.<AccountResponse>builder()
                 .data(accountService.getUser(jwt.getSubject()))
+                .message("Lấy thông tin tài khoản thành công")
+                .build();
+    }
+
+    @GetMapping("/post")
+    public ApiResponse<List<PostResponse>> getPostProfile(@AuthenticationPrincipal Jwt jwt) {
+        int size = 10;
+        return ApiResponse.<List<PostResponse>>builder()
+                .data(postService.getPostsByUserId(jwt.getSubject(), size))
                 .message("Lấy thông tin tài khoản thành công")
                 .build();
     }

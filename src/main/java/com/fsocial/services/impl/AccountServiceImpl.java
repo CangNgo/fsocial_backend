@@ -11,16 +11,19 @@ import com.fsocial.dto.response.DuplicationResponse;
 import com.fsocial.dto.response.ManageUserResponse;
 import com.fsocial.dto.response.SearchPageResponse;
 import com.fsocial.entity.Account;
+import com.fsocial.entity.AuthProviderCredential;
 import com.fsocial.entity.RefreshToken;
 import com.fsocial.entity.Token;
 import com.fsocial.enums.AccountErrorCode;
 import com.fsocial.enums.AccountResponseStatus;
+import com.fsocial.enums.AuthProvider;
 import com.fsocial.enums.RedisKeyType;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;
 import com.fsocial.mapper.AccountMapper;
 import com.fsocial.entity.Follow;
 import com.fsocial.repository.AccountRepository;
+import com.fsocial.repository.AuthProviderRepository;
 import com.fsocial.repository.FollowRepository;
 import com.fsocial.repository.RefreshTokenRepository;
 import com.fsocial.repository.RoleRepository;
@@ -55,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 public class AccountServiceImpl implements AccountService {
 
     AccountRepository accountRepository;
+    AuthProviderRepository authProviderRepository;
     FollowRepository followRepository;
     RoleRepository roleRepository;
     AccountMapper accountMapper;
@@ -91,9 +95,12 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
-        account.setPassword(passwordEncoder.encode(newPassword));
-        account.setUpdatedAt(LocalDateTime.now());
-        accountRepository.save(account);
+        AuthProviderCredential localAuth = authProviderRepository
+                .findByAccount_IdAndProvider(account.getId(), AuthProvider.LOCAL)
+                .orElseThrow(() -> new AppException(AccountErrorCode.LOCAL_AUTH_NOT_FOUND));
+
+        localAuth.setPassword(passwordEncoder.encode(newPassword));
+        authProviderRepository.save(localAuth);
         log.info("Đặt lại mật khẩu thành công.");
     }
 
@@ -121,13 +128,16 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountRepository.findById(userId)
                 .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
-        if (!passwordEncoder.matches(oldPassword, account.getPassword())) {
+        AuthProviderCredential localAuth = authProviderRepository
+                .findByAccount_IdAndProvider(account.getId(), AuthProvider.LOCAL)
+                .orElseThrow(() -> new AppException(AccountErrorCode.LOCAL_AUTH_NOT_FOUND));
+
+        if (!passwordEncoder.matches(oldPassword, localAuth.getPassword())) {
             throw new AppException(AccountErrorCode.WRONG_PASSWORD);
         }
 
-        account.setPassword(passwordEncoder.encode(newPassword));
-        account.setUpdatedAt(LocalDateTime.now());
-        accountRepository.save(account);
+        localAuth.setPassword(passwordEncoder.encode(newPassword));
+        authProviderRepository.save(localAuth);
         log.info("Đổi mật khẩu thành công.");
     }
 
@@ -182,7 +192,7 @@ public class AccountServiceImpl implements AccountService {
                 .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         Optional<Token> tokenAccount = tokenRepository.findByAccount(banAccount);
-        Optional<RefreshToken> refreshToken = refreshTokenRepository.findFirstByUsernameOrderByExpiryDateDesc(banAccount.getUsername());
+        Optional<RefreshToken> refreshToken = refreshTokenRepository.findFirstByAccountIdOrderByExpiryDateDesc(banAccount.getId());
 
         banAccount.setStatus(false);
         accountRepository.save(banAccount);
@@ -334,7 +344,6 @@ public class AccountServiceImpl implements AccountService {
     private Account saveAccount(AccountRegisterRequest request) {
         Account account = accountMapper.toEntity(request);
         account.setCreatedAt(LocalDateTime.now());
-        account.setPassword(passwordEncoder.encode(request.getPassword()));
         account.setRole(roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new AppException(AccountErrorCode.ROLE_NOT_FOUND)));
         account.setStatus(true);
@@ -343,7 +352,15 @@ public class AccountServiceImpl implements AccountService {
         account.setAvatar(defaultMediaProvider.pickAvatar(seed));
         account.setBackground(defaultMediaProvider.pickBackground(seed));
 
-        return accountRepository.save(account);
+        Account savedAccount = accountRepository.save(account);
+
+        authProviderRepository.save(AuthProviderCredential.builder()
+                .account(savedAccount)
+                .provider(AuthProvider.LOCAL)
+                .password(passwordEncoder.encode(request.getPassword()))
+                .build());
+
+        return savedAccount;
     }
 
     private AccountResponse toAccountResponse(Account account) {

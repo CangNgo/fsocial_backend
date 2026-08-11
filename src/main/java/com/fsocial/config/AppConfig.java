@@ -53,7 +53,11 @@ public class AppConfig {
             "/docs", "/docs/**",
             "/api-docs", "/api-docs/**",
             "/v3/api-docs", "/v3/api-docs/**",
-            "/swagger-ui.html", "/swagger-ui/**", "/webjars/**"
+            "/swagger-ui.html", "/swagger-ui/**", "/webjars/**",
+            // WebSocket handshake: raw stompjs client can't send Authorization
+            // header on the HTTP upgrade request; real auth happens on the
+            // STOMP CONNECT frame via StompAuthChannelInterceptor.
+            "/ws", "/ws/**"
     };
 
     @Bean

@@ -1,0 +1,62 @@
+// ===== CHAT / MESSAGING =====
+
+Table conversations {
+  id uuid [pk, default: `gen_random_uuid()`]
+  type varchar [not null, note: 'conversation_type enum: DIRECT/GROUP...']
+  name varchar(100) [note: 'NULL với chat 1-1, bắt buộc với GROUP']
+  avatar_url text
+  created_by uuid
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table conversation_members {
+  conversation_id uuid [not null]
+  user_id uuid [not null]
+  role varchar [not null, default: 'MEMBER', note: 'member_role enum: OWNER/ADMIN/MEMBER']
+  last_read_message_id uuid [note: 'để tính unread count, không dùng bảng read-receipt riêng cho group đông người']
+  is_muted boolean [not null, default: false]
+  joined_at timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (conversation_id, user_id) [pk]
+  }
+}
+
+Table messages {
+  id uuid [pk, default: `gen_random_uuid()`]
+  conversation_id uuid [not null]
+  sender_id uuid [not null]
+  content text [note: 'có thể NULL nếu tin nhắn chỉ có ảnh/video']
+  message_type varchar [not null, default: 'TEXT', note: 'message_type enum: TEXT/IMAGE/VIDEO/FILE/SYSTEM']
+  reply_to_id uuid
+  created_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz [note: 'soft delete, giữ lịch sử']
+
+  Indexes {
+    (conversation_id, created_at) [name: 'idx_messages_conversation_time', note: 'load lịch sử chat theo conversation, phân trang theo thời gian']
+  }
+}
+
+Table message_attachments {
+  id uuid [pk, default: `gen_random_uuid()`]
+  message_id uuid [not null]
+  attachment_type varchar [not null, note: 'attachment_type enum: IMAGE/VIDEO/FILE/AUDIO']
+  url text [not null, note: 'URL trên S3/CDN, không lưu binary trong DB']
+  thumbnail_url text [note: 'cho ảnh/video, hiển thị preview nhanh']
+  file_name varchar(255)
+  file_size bigint
+  mime_type varchar(100)
+  width int [note: 'cho ảnh/video']
+  height int [note: 'cho ảnh/video']
+  duration_seconds int [note: 'cho video/audio']
+}
+
+// ===== REFERENCES =====
+
+Ref: conversations.created_by > users.id
+Ref: conversation_members.conversation_id > conversations.id [delete: cascade]
+Ref: conversation_members.user_id > users.id [delete: cascade]
+Ref: messages.conversation_id > conversations.id [delete: cascade]
+Ref: messages.sender_id > users.id
+Ref: messages.reply_to_id > messages.id
+Ref: message_attachments.message_id > messages.id [delete: cascade]

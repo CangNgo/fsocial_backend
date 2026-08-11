@@ -6,7 +6,6 @@ import com.cloudinary.utils.ObjectUtils;
 import com.fsocial.dto.Attachments.AttachmentDTO;
 import com.fsocial.dto.post.MediaItemDTO;
 import com.fsocial.enums.AttachmentType;
-import com.fsocial.enums.MediaType;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;
 import com.fsocial.services.AttachmentsService;
@@ -137,7 +136,6 @@ public class UploadMediaImpl implements UploadMedia {
 
             String secureUrl = uploadResult.get(SECURE_URL_KEY).toString();
             String resolvedType = uploadResult.get(RESOURCE_TYPE_KEY).toString();
-            MediaType mediaType = MediaType.fromValue(resolvedType);
             Object rawWidth = uploadResult.get(WIDTH_KEY);
             Object rawHeight = uploadResult.get(HEIGHT_KEY);
             Integer width = rawWidth != null ? Integer.parseInt(rawWidth.toString()) : null;
@@ -150,7 +148,6 @@ public class UploadMediaImpl implements UploadMedia {
                     .ownerId(userId)
                     .url(secureUrl)
                     .type(type)
-                    .mediaType(mediaType)
                     .width(width)
                     .height(height)
                     .build());
@@ -158,8 +155,7 @@ public class UploadMediaImpl implements UploadMedia {
             return MediaItemDTO.builder()
                     .attachmentId(saved.getId())
                     .url(secureUrl)
-                    .type(mediaType.value())
-                    .mediaType(mediaType)
+                    .type(resolvedType)
                     .width(width)
                     .height(height)
                     .build();

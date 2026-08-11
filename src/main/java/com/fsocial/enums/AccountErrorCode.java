@@ -29,6 +29,7 @@ public enum AccountErrorCode implements CodeEnum {
     ACCOUNT_BANNED(601, "Account banned.", HttpStatus.UNAUTHORIZED),
     PERMISSION_NOT_FOUND(404, "Permission not found", HttpStatus.NOT_FOUND),
     ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),
+    LOCAL_AUTH_NOT_FOUND(704, "Tài khoản này không đăng nhập bằng mật khẩu.", HttpStatus.BAD_REQUEST),
     ;
 
     final int code;

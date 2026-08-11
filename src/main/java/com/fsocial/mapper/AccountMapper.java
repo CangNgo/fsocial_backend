@@ -16,6 +16,6 @@ public interface AccountMapper {
 //    AccountResponse toAccountResponse(Account account);
     Account toEntity(ProfileDTO profileDTO);
 
-    @Mapping(target = "displayName", expression = "java(com.fsocial.postservice.util.DisplayNameUtils.build(account))")
+    @Mapping(target = "displayName", expression = "java(com.fsocial.util.DisplayNameUtils.build(account))")
     ProfileResponse toProfileResponse(Account account);
 }

@@ -3,7 +3,6 @@ package com.fsocial.controller;
 import com.fsocial.dto.ApiResponse;
 import com.fsocial.dto.google.GoogleDTORequest;
 import com.fsocial.dto.request.*;
-import com.fsocial.postservice.dto.request.*;
 import com.fsocial.dto.response.AccountResponse;
 import com.fsocial.dto.response.AuthenticationResponse;
 import com.fsocial.dto.response.DuplicationResponse;

@@ -1,7 +1,6 @@
 package com.fsocial.dto.Attachments;
 
 import com.fsocial.enums.AttachmentType;
-import com.fsocial.enums.MediaType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -25,7 +24,6 @@ public class AttachmentDTO {
     Integer width;
     Integer height;
     AttachmentType type;
-    MediaType mediaType;
     LocalDateTime createdAt;
 
     public AttachmentDTO(String id, String publicId, String url, String resourceType, String fileType,

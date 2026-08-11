@@ -2,7 +2,6 @@ package com.fsocial.controller;
 
 import com.fsocial.dto.ApiResponse;
 import com.fsocial.dto.post.*;
-import com.fsocial.postservice.dto.post.*;
 import com.fsocial.dto.response.SearchPageResponse;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;

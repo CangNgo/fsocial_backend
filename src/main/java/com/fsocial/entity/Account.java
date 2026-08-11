@@ -1,6 +1,5 @@
 package com.fsocial.entity;
 
-import com.fsocial.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -16,13 +15,10 @@ import java.time.LocalDate;
 @SuperBuilder
 @Entity
 @Table(name = "account")
-public class Account extends AbstractEntity<String> {
+public class    Account extends AbstractEntity<String> {
 
-    @Column(name = "username", length = 64, nullable = false, unique = true)
+    @Column(name = "username", length = 64)
     String username;
-
-    @Column(name = "password")
-    String password;
 
     @Column(name = "first_name", length = 128)
     String firstName;
@@ -69,14 +65,6 @@ public class Account extends AbstractEntity<String> {
     @Column(name = "status", nullable = false)
     @Builder.Default
     boolean status = true;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider", length = 16, nullable = false)
-    @Builder.Default
-    AuthProvider provider = AuthProvider.LOCAL;
-
-    @Column(name = "google_id", length = 64)
-    String googleId;
 
     // follower/following (Set<String>) -> bảng `follow`, truy vấn qua FollowRepository
 

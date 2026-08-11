@@ -1,7 +1,6 @@
 package com.fsocial.entity;
 
 import com.fsocial.enums.AttachmentType;
-import com.fsocial.enums.MediaType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -51,8 +50,4 @@ public class Attachments extends AbstractEntity<String> {
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 16)
     AttachmentType type;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "media_type", length = 8)
-    MediaType mediaType;
 }

@@ -7,6 +7,7 @@ import com.fsocial.dto.request.AccountLoginRequest;
 import com.fsocial.dto.response.AuthenticationResponse;
 import com.fsocial.dto.response.IntrospectResponse;
 import com.fsocial.entity.Account;
+import com.fsocial.entity.AuthProviderCredential;
 import com.fsocial.entity.Role;
 import com.fsocial.entity.Token;
 import com.fsocial.enums.AccountErrorCode;
@@ -14,9 +15,10 @@ import com.fsocial.enums.AuthProvider;
 import com.fsocial.enums.NotificationType;
 import com.fsocial.exception.AppException;
 import com.fsocial.exception.StatusCode;
-import com.fsocial.postservice.exception.*;
+import com.fsocial.exception.*;
 import com.fsocial.publisher.NotificationEvent;
 import com.fsocial.repository.AccountRepository;
+import com.fsocial.repository.AuthProviderRepository;
 import com.fsocial.repository.RoleRepository;
 import com.fsocial.repository.TokenRepository;
 import com.fsocial.services.AuthenticationService;
@@ -32,6 +34,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -42,6 +45,7 @@ import java.util.Optional;
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     AccountRepository accountRepository;
+    AuthProviderRepository authProviderRepository;
     PasswordEncoder passwordEncoder;
     JwtService jwtService;
     RefreshTokenService refreshTokenService;
@@ -54,7 +58,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public AuthenticationResponse login(AccountLoginRequest request, String userAgent, HttpServletRequest httpRequest) {
         Account account = accountRepository.findByUsernameOrEmail(request.getUsername(), request.getUsername())
-                .filter(acc -> acc.getPassword() != null && passwordEncoder.matches(request.getPassword(), acc.getPassword()))
+                .orElseThrow(() -> {
+                    log.warn("Sai tên tài khoản hoặc mật khẩu: {}", request.getUsername());
+                    return new AppException(AccountErrorCode.LOGIN_FAILED);
+                });
+
+        authProviderRepository.findByAccount_IdAndProvider(account.getId(), AuthProvider.LOCAL)
+                .filter(auth -> auth.getPassword() != null && passwordEncoder.matches(request.getPassword(), auth.getPassword()))
                 .orElseThrow(() -> {
                     log.warn("Sai tên tài khoản hoặc mật khẩu: {}", request.getUsername());
                     return new AppException(AccountErrorCode.LOGIN_FAILED);
@@ -74,7 +84,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public AuthenticationResponse saveToken(Account account, String userAgent, HttpServletRequest httpRequest){
 
         String ipAddress = httpRequest.getRemoteAddr();
-        String accessToken = jwtService.generateToken(account.getUsername());
+        String accessToken = jwtService.generateToken(account.getId());
 
         Optional<Token> existingToken = tokenRepository.findByAccount(account);
         Token tokenEntity;
@@ -87,7 +97,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         tokenEntity.setAccount(account);
         tokenRepository.save(tokenEntity);
 
-        String refreshToken = refreshTokenService.createRefreshToken(account.getUsername(), userAgent, ipAddress).getToken();
+        String refreshToken = refreshTokenService.createRefreshToken(account.getId(), userAgent, ipAddress).getToken();
 
         notificationEvent.publishCreateNotification(new NotificationDTO(
                 account.getId(),
@@ -101,6 +111,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
     }
 
+    @Override
+    @Transactional
     public AuthenticationResponse loginWithGoogle(GoogleDTORequest request,  String userAgent, HttpServletRequest httpRequest){
         GoogleIdToken.Payload payload = googleOAuthService.verify(request.code());
 
@@ -115,35 +127,53 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         );
         log.info("Google login for email: {}", googleUserInfo.email());
 
-        //5: find or create
-        Optional<Account> account = accountRepository.findByEmail(googleUserInfo.email()) ;
-
-        if(account.isEmpty()){
-
-            Role role = roleRepository.findByName("USER").orElseThrow(() -> new AppException(StatusCode.ROLE_NOT_FOUND));
-
-            String seed = googleUserInfo.email();
-            Account accountRegister = accountRepository.save(Account.builder()
-                            .username(googleUserInfo.email())
-                            .email(googleUserInfo.email())
-                            .firstName(googleUserInfo.givenName())
-                            .lastName(googleUserInfo.familyName())
-                            .displayName(googleUserInfo.displayName())
-                            .role(role)
-                            .provider(AuthProvider.GOOGLE)
-                            .avatar(googleUserInfo.picture())
-                            .background(defaultMediaProvider.pickBackground(seed))
-                            .address(googleUserInfo.locale())
-                            .status(true)
-                            .googleId(googleUserInfo.googleId())
-                    .build());
-
-            return this.saveToken(accountRegister, userAgent, httpRequest);
-        }else {
-            Account existingAccount = account.get();
+        // 1: đã từng login Google trước đó -> tra theo providerUserId
+        Optional<AuthProviderCredential> linkedAuth = authProviderRepository
+                .findByProviderAndProviderUserId(AuthProvider.GOOGLE, googleUserInfo.googleId());
+        if (linkedAuth.isPresent()) {
+            Account existingAccount = linkedAuth.get().getAccount();
             if (!existingAccount.isStatus()) throw new AppException(AccountErrorCode.ACCOUNT_BANNED);
             return this.saveToken(existingAccount, userAgent, httpRequest);
         }
+
+        // 2: account đã tồn tại (vd đăng ký local cùng email) -> link thêm Google vào account đó
+        Optional<Account> accountByEmail = accountRepository.findByEmail(googleUserInfo.email());
+        if (accountByEmail.isPresent()) {
+            Account existingAccount = accountByEmail.get();
+            if (!existingAccount.isStatus()) throw new AppException(AccountErrorCode.ACCOUNT_BANNED);
+
+            authProviderRepository.save(AuthProviderCredential.builder()
+                    .account(existingAccount)
+                    .provider(AuthProvider.GOOGLE)
+                    .providerUserId(googleUserInfo.googleId())
+                    .build());
+
+            return this.saveToken(existingAccount, userAgent, httpRequest);
+        }
+
+        // 3: chưa có gì -> tạo account mới (username/password null) + auth_provider GOOGLE
+        Role role = roleRepository.findByName("USER").orElseThrow(() -> new AppException(StatusCode.ROLE_NOT_FOUND));
+
+        String seed = googleUserInfo.email();
+        Account accountRegister = accountRepository.save(Account.builder()
+                        .email(googleUserInfo.email())
+                        .firstName(googleUserInfo.givenName())
+                        .lastName(googleUserInfo.familyName())
+                        .displayName(googleUserInfo.displayName())
+                        .role(role)
+                        .avatar(googleUserInfo.picture())
+                        .background(defaultMediaProvider.pickBackground(seed))
+                        .address(googleUserInfo.locale())
+                        .status(true)
+                .build());
+
+        authProviderRepository.save(AuthProviderCredential.builder()
+                .account(accountRegister)
+                .provider(AuthProvider.GOOGLE)
+                .providerUserId(googleUserInfo.googleId())
+                .build());
+
+        return this.saveToken(accountRegister, userAgent, httpRequest);
     }
 
 }

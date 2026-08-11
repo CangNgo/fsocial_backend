@@ -1,5 +1,6 @@
 package com.fsocial.mapper;
 
+import com.fsocial.dto.Attachments.AttachementProfileDTO;
 import com.fsocial.dto.Attachments.AttachmentDTO;
 import com.fsocial.entity.Attachments;
 import org.mapstruct.Mapper;

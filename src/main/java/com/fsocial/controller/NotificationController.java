@@ -5,7 +5,6 @@ import com.fsocial.dto.notification.DeviceTokenDTO;
 import com.fsocial.dto.notification.NoticeRequest;
 import com.fsocial.dto.notification.NotificationCursorResponse;
 import com.fsocial.dto.notification.NotificationResponse;
-import com.fsocial.postservice.dto.notification.*;
 import com.fsocial.services.DemoNotificationService;
 import com.fsocial.services.DeviceTokenService;
 import com.fsocial.services.NotificaitonService;

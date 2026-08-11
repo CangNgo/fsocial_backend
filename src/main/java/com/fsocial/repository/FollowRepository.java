@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface FollowRepository extends JpaRepository<Follow, Follow.Key> {
+public interface FollowRepository extends JpaRepository<Follow, String> {
 
     boolean existsByFollowerIdAndFolloweeId(String followerId, String followeeId);
 

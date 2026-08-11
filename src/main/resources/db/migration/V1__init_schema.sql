@@ -85,8 +85,7 @@ CREATE TABLE refresh_token (
 CREATE INDEX idx_refresh_username_expiry ON refresh_token(username, expiry_date);
 
 -- ============================================================
--- Post — tags là cột mảng native (không còn post_tag); media dùng chung
--- bảng attachments (không còn post_media riêng)
+-- Post / media / tags
 -- ============================================================
 
 CREATE TABLE post (
@@ -101,7 +100,6 @@ CREATE TABLE post (
     global_score    DOUBLE PRECISION NOT NULL DEFAULT 0,
     raw_engagement  DOUBLE PRECISION NOT NULL DEFAULT 0,
     share_count     INT NOT NULL DEFAULT 0,
-    tags            TEXT[] NOT NULL DEFAULT '{}',
     created_by      VARCHAR(36),
     updated_by      VARCHAR(36),
     created_at      TIMESTAMP,
@@ -112,11 +110,31 @@ CREATE INDEX idx_post_owner_time ON post(owner_id, create_datetime DESC);
 CREATE INDEX idx_post_created    ON post(create_datetime DESC);
 CREATE INDEX idx_post_score      ON post(global_score DESC) WHERE status;
 CREATE INDEX idx_post_created_at ON post(created_at);
-CREATE INDEX idx_post_tags       ON post USING GIN(tags);
+
+-- Post.mediaUrls[] embedded (Mongo) -> bảng con, giữ thứ tự qua ord
+CREATE TABLE post_media (
+    id      VARCHAR(36) PRIMARY KEY,
+    post_id VARCHAR(36) NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+    ord     INT NOT NULL DEFAULT 0,
+    url     TEXT NOT NULL,
+    type    VARCHAR(16),
+    width   INT,
+    height  INT
+);
+
+CREATE INDEX idx_post_media_post ON post_media(post_id, ord);
+
+-- Post.tags[] embedded (Mongo) -> bảng con
+CREATE TABLE post_tag (
+    post_id VARCHAR(36) NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+    tag     VARCHAR(64) NOT NULL,
+    PRIMARY KEY (post_id, tag)
+);
+
+CREATE INDEX idx_post_tag_tag ON post_tag(tag);
 
 -- ============================================================
--- Attachments — thư viện media dùng chung; khi post_id IS NOT NULL đóng vai
--- trò post_media cũ (ord/width/height/type/media_type)
+-- Attachments — thư viện media dùng chung, độc lập với post_media
 -- ============================================================
 
 CREATE TABLE attachments (
@@ -127,12 +145,6 @@ CREATE TABLE attachments (
     size          VARCHAR(64),
     url           TEXT,
     owner_id      VARCHAR(36),
-    post_id       VARCHAR(36) REFERENCES post(id) ON DELETE CASCADE,
-    ord           INT,
-    width         INT,
-    height        INT,
-    type          VARCHAR(16),
-    media_type    VARCHAR(8),
     created_by    VARCHAR(36),
     updated_by    VARCHAR(36),
     created_at    TIMESTAMP,
@@ -140,15 +152,6 @@ CREATE TABLE attachments (
 );
 
 CREATE INDEX idx_attachments_owner ON attachments(owner_id);
-CREATE INDEX idx_attachments_post  ON attachments(post_id, ord);
-
--- Catalog hashtag — đồng bộ định kỳ từ post.tags qua HashtagSyncScheduler
-CREATE TABLE hashtag (
-    name        VARCHAR(64) PRIMARY KEY,
-    usage_count INT NOT NULL DEFAULT 0,
-    created_at  TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT now()
-);
 
 CREATE TABLE post_like (
     post_id    VARCHAR(36) NOT NULL REFERENCES post(id) ON DELETE CASCADE,

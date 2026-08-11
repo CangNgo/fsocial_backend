@@ -4,6 +4,9 @@ import com.fsocial.dto.post.PostStatisticsDTO;
 import com.fsocial.dto.post.PostStatisticsLongDateDTO;
 import com.fsocial.entity.Post;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.ScrollPosition;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Window;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -158,4 +161,6 @@ public interface PostRepository extends JpaRepository<Post, String> {
     int updateScores(@Param("postId") String postId,
                      @Param("raw") double rawEngagement,
                      @Param("global") double globalScore);
+
+    Window<List<Post>> findByCreatedBy(String createdBy, Sort sort, ScrollPosition position);
 }

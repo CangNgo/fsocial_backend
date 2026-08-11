@@ -1,6 +1,5 @@
 package com.fsocial.dto.post;
 
-import com.fsocial.enums.MediaType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -19,7 +18,6 @@ public class MediaItemDTO {
     String attachmentId;
     String url;
     String type; // "image" | "video"
-    MediaType mediaType;
     Integer width;
     Integer height;
 }

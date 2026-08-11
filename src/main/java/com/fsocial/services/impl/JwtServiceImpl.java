@@ -42,8 +42,8 @@ public class JwtServiceImpl implements JwtService {
     long durationTime;
 
     @Override
-    public String generateToken(String username) {
-        Account account = accountRepository.findByUsername(username)
+    public String generateToken(String accountId) {
+        Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AppException(AccountErrorCode.ACCOUNT_NOT_EXISTED));
 
         JWTClaimsSet claimsSet = buildClaimsSet(account);

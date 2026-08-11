@@ -5,9 +5,9 @@ import com.fsocial.dto.post.*;
 import com.fsocial.entity.Account;
 import com.fsocial.entity.Post;
 import com.fsocial.entity.PostLike;
-import com.fsocial.postservice.dto.post.*;
+import com.fsocial.dto.post.*;
 import com.fsocial.dto.response.SearchPageResponse;
-import com.fsocial.postservice.entity.*;
+import com.fsocial.entity.*;
 import com.fsocial.enums.AttachmentType;
 import com.fsocial.enums.NotificationType;
 import com.fsocial.exception.AppException;
@@ -339,5 +339,10 @@ public class PostServiceImpl implements PostService {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PostResponse> getMyPost(String userId) {
+        return List.of();
     }
 }

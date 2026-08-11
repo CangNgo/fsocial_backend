@@ -6,7 +6,6 @@ import com.fsocial.entity.Post;
 import com.fsocial.entity.PostLike;
 import com.fsocial.entity.Attachments;
 import com.fsocial.enums.AttachmentType;
-import com.fsocial.enums.MediaType;
 import com.fsocial.repository.AccountRepository;
 import com.fsocial.repository.AttachmentsRepository;
 import com.fsocial.repository.CommentRepository;
@@ -55,12 +54,12 @@ class MigrationSanityTest {
         post.addMedia(Attachments.builder()
                 .url("http://a/1.png")
                 .type(AttachmentType.POST)
-                .mediaType(MediaType.IMAGE)
+                .resourceType("image")
                 .build());
         post.addMedia(Attachments.builder()
                 .url("http://a/2.png")
                 .type(AttachmentType.POST)
-                .mediaType(MediaType.IMAGE)
+                .resourceType("image")
                 .build());
         postRepository.saveAndFlush(post);
         attachmentsRepository.saveAllAndFlush(post.getMedia());
@@ -93,7 +92,7 @@ class MigrationSanityTest {
         post.addMedia(Attachments.builder()
                 .url("http://a/1.png")
                 .type(AttachmentType.POST)
-                .mediaType(MediaType.IMAGE)
+                .resourceType("image")
                 .build());
         postRepository.saveAndFlush(post);
         attachmentsRepository.saveAllAndFlush(post.getMedia());

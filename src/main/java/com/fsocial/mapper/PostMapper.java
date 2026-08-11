@@ -30,6 +30,6 @@ public interface PostMapper {
     ActorSnapshotDTO toActorSnapshot(Account account);
 
     @Mapping(target = "attachmentId", source = "id")
-    @Mapping(target = "type", expression = "java(media.getMediaType() == null ? null : media.getMediaType().value())")
+    @Mapping(target = "type", source = "resourceType")
     MediaItemDTO toMediaItemDTO(Attachments media);
 }

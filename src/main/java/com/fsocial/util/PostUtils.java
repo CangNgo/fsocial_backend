@@ -55,7 +55,7 @@ public class PostUtils {
         }
         return mediaItems.stream()
                 .filter(Objects::nonNull)
-                .map(item -> toMediaResponse(item.getMediaType(), item.getUrl(), item.getWidth(), item.getHeight()))
+                .map(item -> toMediaResponse(MediaType.fromValue(item.getResourceType()), item.getUrl(), item.getWidth(), item.getHeight()))
                 .toList();
     }
 

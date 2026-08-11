@@ -1,0 +1,382 @@
+// ===== ACCOUNT / AUTH =====
+
+Table account {
+  id varchar(36) [pk]
+  username varchar(64) [not null, unique]
+  password varchar
+  first_name varchar(128)
+  last_name varchar(128)
+  display_name varchar
+  dob date
+  gender int [not null]
+  avatar text
+  background text
+  bio text
+  address text
+  is_kol boolean [not null, default: false]
+  role_id varchar(36)
+  email varchar
+  status boolean [not null, default: true]
+  provider varchar(16) [not null, default: 'LOCAL', note: 'AuthProvider enum']
+  google_id varchar(64)
+  is_public boolean [not null, default: true]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table role {
+  id varchar(36) [pk]
+  name varchar(64) [not null, unique]
+  description text
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table permission {
+  name varchar(64) [pk]
+  description text
+}
+
+Table role_permission {
+  role_id varchar(36) [not null]
+  permission_name varchar(64) [not null]
+  Indexes {
+    (role_id, permission_name) [pk]
+  }
+}
+
+Table token {
+  id varchar(36) [pk]
+  token text
+  account_id varchar(36) [unique]
+}
+
+Table refresh_token {
+  id varchar(36) [pk]
+  token text [not null, unique]
+  username varchar(64) [not null]
+  expiry_date timestamp [not null]
+  user_agent text
+  ip_address varchar(64)
+}
+
+Table device_token {
+  id varchar(36) [pk]
+  user_id varchar(36) [not null]
+  fcm_token text [not null, unique]
+  device_id varchar(128) [not null]
+  device_type varchar(32)
+  device_name varchar(128)
+  app_version varchar(32)
+  os_version varchar(32)
+  is_active boolean [not null, default: true]
+  last_use_at timestamp
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+
+  Indexes {
+    (user_id, device_id) [unique, name: 'uk_device_user_device']
+  }
+}
+
+Table follow {
+  follower_id varchar(36) [not null]
+  followee_id varchar(36) [not null]
+  created_at timestamp [not null]
+
+  Indexes {
+    (follower_id, followee_id) [pk]
+  }
+}
+
+// ===== POST =====
+
+Table post {
+  id varchar(36) [pk]
+  owner_id varchar(36) [not null]
+  text text
+  html text
+  create_datetime timestamp [not null]
+  origin_post_id varchar(36) [note: 'self-ref for shared post']
+  is_share boolean [not null, default: false]
+  status boolean [not null, default: true]
+  global_score double [not null, default: 0.0]
+  raw_engagement double [not null, default: 0.0]
+  share_count int [not null, default: 0]
+  tags "text[]"
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table attachments {
+  id varchar(36) [pk]
+  public_id varchar
+  resource_type varchar(64)
+  file_type varchar(64)
+  size varchar(64)
+  url text
+  owner_id varchar(36)
+  post_id varchar(36)
+  ord int
+  width int
+  height int
+  type varchar(16) [note: 'AttachmentType enum']
+  media_type varchar(8) [note: 'MediaType enum']
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table post_like {
+  post_id varchar(36) [not null]
+  user_id varchar(36) [not null]
+  created_at timestamp [not null]
+
+  Indexes {
+    (post_id, user_id) [pk]
+  }
+}
+
+Table seen_post {
+  user_id varchar(36) [not null]
+  post_id varchar(36) [not null]
+  seen_at timestamp [not null]
+
+  Indexes {
+    (user_id, post_id) [pk]
+  }
+}
+
+Table user_interest {
+  user_id varchar(36) [not null]
+  tag varchar(64) [not null]
+  weight double [not null]
+  updated_at timestamp [not null]
+
+  Indexes {
+    (user_id, tag) [pk]
+  }
+}
+
+Table hashtag {
+  name varchar(64) [pk]
+  usage_count int [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+// ===== COMMENT =====
+
+Table comment {
+  id varchar(36) [pk]
+  post_id varchar(36) [not null]
+  parent_id varchar(36) [note: 'self-ref: null = comment gốc, khác null = reply']
+  user_id varchar(36) [not null]
+  text text
+  html text
+  create_datetime timestamp [not null]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table comment_media {
+  id varchar(36) [pk]
+  comment_id varchar(36) [not null]
+  ord int [not null]
+  url text [not null]
+  type varchar(16) [note: 'MediaType enum']
+  width int
+  height int
+}
+
+Table comment_like {
+  comment_id varchar(36) [not null]
+  user_id varchar(36) [not null]
+  created_at timestamp [not null]
+
+  Indexes {
+    (comment_id, user_id) [pk]
+  }
+}
+
+// ===== COMPLAINT =====
+
+Table complaint {
+  id varchar(36) [pk]
+  target_id varchar(36) [not null]
+  complaint_type varchar(16) [not null, note: 'ComplaintType enum']
+  is_read boolean [not null]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table complaint_detail {
+  id varchar(36) [pk]
+  complaint_id varchar(36) [not null]
+  user_id varchar(36) [not null]
+  term_of_service_id varchar(36)
+  create_datetime timestamp [not null]
+}
+
+Table term_of_service {
+  id varchar(36) [pk]
+  name text [not null]
+  status boolean [not null, default: true]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+// ===== NOTIFICATION =====
+
+Table notification {
+  id varchar(36) [pk]
+  recipient_id varchar(36) [not null]
+  sender_id varchar(36)
+  type varchar(32) [not null, note: 'NotificationType enum']
+  group_key varchar(128)
+  title text
+  body text
+  is_read boolean [not null]
+  read_at timestamp
+  pushed boolean [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table notification_sender {
+  notification_id varchar(36) [not null]
+  ord int [not null]
+  sender_id varchar(36) [not null]
+  note: 'aggregatedSenderIds - danh sách sender gần nhất khi gom nhóm'
+}
+
+Table notification_metadata {
+  notification_id varchar(36) [not null]
+  meta_key varchar(64) [not null]
+  meta_value text
+  note: 'payload linh hoạt: deep link, FCM data...'
+}
+
+Table notification_preference {
+  id varchar(36) [pk]
+  user_id varchar(36) [not null, unique]
+  quiet_hours_start varchar(8)
+  quiet_hours_end varchar(8)
+  timezone varchar(64)
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table preference_setting {
+  preference_id varchar(36) [not null]
+  notification_type varchar(32) [not null, note: 'map key']
+  push_enabled boolean [not null, default: true]
+  email_enabled boolean [not null, default: false]
+  in_app_enabled boolean [not null, default: true]
+  note: 'embedded ChannelSettings per notification_type'
+}
+
+Table notification_template {
+  id varchar(36) [pk]
+  type varchar(32) [not null, unique, note: 'NotificationType enum']
+  is_active boolean [not null, default: true]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table template_translation {
+  template_id varchar(36) [not null]
+  locale varchar(8) [not null, note: 'vi/en/ja...']
+  title_template text
+  body_template text
+}
+
+Table template_default_data {
+  template_id varchar(36) [not null]
+  data_key varchar(64) [not null]
+  data_value text
+}
+
+// ===== EMAIL TEMPLATE =====
+
+Table email_template {
+  id varchar(36) [pk]
+  name varchar(128) [not null]
+  content text
+  is_active boolean [not null]
+  is_default boolean [not null]
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table email_template_field {
+  id varchar(36) [pk]
+  name varchar(128) [not null]
+  description text
+  created_by varchar
+  updated_by varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+// ===== REFERENCES =====
+
+Ref: account.role_id > role.id
+Ref: token.account_id - account.id
+Ref: refresh_token.username > account.username
+
+Ref: role_permission.role_id > role.id
+Ref: role_permission.permission_name > permission.name
+
+Ref: device_token.user_id > account.id
+Ref: follow.follower_id > account.id
+Ref: follow.followee_id > account.id
+
+Ref: post.owner_id > account.id
+Ref: attachments.post_id > post.id
+Ref: post_like.post_id > post.id
+Ref: post_like.user_id > account.id
+Ref: seen_post.user_id > account.id
+Ref: seen_post.post_id > post.id
+Ref: user_interest.user_id > account.id
+
+Ref: comment.post_id > post.id
+Ref: comment.parent_id > comment.id
+Ref: comment.user_id > account.id
+Ref: comment_media.comment_id > comment.id
+Ref: comment_like.comment_id > comment.id
+Ref: comment_like.user_id > account.id
+
+Ref: complaint_detail.complaint_id > complaint.id
+Ref: complaint_detail.user_id > account.id
+Ref: complaint_detail.term_of_service_id > term_of_service.id
+
+Ref: notification.recipient_id > account.id
+Ref: notification.sender_id > account.id
+Ref: notification_sender.notification_id > notification.id
+Ref: notification_metadata.notification_id > notification.id
+Ref: notification_preference.user_id > account.id
+Ref: preference_setting.preference_id > notification_preference.id
+Ref: template_translation.template_id > notification_template.id
+Ref: template_default_data.template_id > notification_template.id
