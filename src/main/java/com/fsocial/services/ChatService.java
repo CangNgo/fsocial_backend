@@ -1,9 +1,6 @@
 package com.fsocial.services;
 
-import com.fsocial.dto.message.ConversationDTO;
-import com.fsocial.dto.message.CreateConversationRequest;
-import com.fsocial.dto.message.MessageDTO;
-import com.fsocial.dto.message.SendMessageRequest;
+import com.fsocial.dto.message.*;
 
 import java.util.List;
 
@@ -18,4 +15,6 @@ public interface ChatService {
     MessageDTO sendMessage(String userId, SendMessageRequest request);
 
     List<String> getMemberIds(String conversationId);
+
+    void markReadConversation(MarkReadDTO request, String userId);
 }

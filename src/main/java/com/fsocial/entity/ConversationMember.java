@@ -29,9 +29,6 @@ public class ConversationMember extends AbstractEntity<String> {
     @Column(name = "role", length = 16, nullable = false)
     MemberRole role = MemberRole.MEMBER;
 
-    @Column(name = "last_read_message_id")
-    String lastReadMessageId;
-
     @Column(name = "last_read_at")
     LocalDateTime lastReadAt;
 

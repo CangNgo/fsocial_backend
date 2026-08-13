@@ -15,7 +15,9 @@ import org.mapstruct.Mapping;
 public interface ChatMapper {
 
     @Mapping(target = "conversationId", source = "conversation.id")
+    @Mapping(target = "senderId", source = "sender.id")
     @Mapping(target = "replyToId", source = "replyTo.id")
+//    @Mapping(target ="actorSnapshotDTO.userId", source = "message.")
     MessageDTO toMessageDTO(Message message);
 
     ConversationDTO toConversationDTO(Conversation conversation);

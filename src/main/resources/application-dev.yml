@@ -105,7 +105,7 @@ jwt:
   expired-time: 7
 
 firebase:
-  config-path: firebase/firebase-service-account.json
+  config-path: ${FIREBASE_CONFIG_PATH:firebase/firebase-service-account.json}
 
 otp:
   expiration:

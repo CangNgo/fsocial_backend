@@ -23,7 +23,7 @@ public class Notification {
 
     @Id
     @GeneratedValue
-    @UuidGenerator
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
     @Column(length = 36)
     private String id;
 

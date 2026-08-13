@@ -24,8 +24,9 @@ public class Message extends AbstractEntity<String> {
     @JoinColumn(name = "conversation_id",  nullable = false)
     Conversation conversation;
 
-    @Column(name = "sender_id", length = 36, nullable = false)
-    String senderId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id", nullable = false)
+    Account sender;
 
     @Column(name = "content", columnDefinition = "TEXT")
     String content;

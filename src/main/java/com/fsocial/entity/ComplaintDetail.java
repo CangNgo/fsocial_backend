@@ -1,5 +1,6 @@
 package com.fsocial.entity;
 
+import com.fsocial.util.UuidV7Generator;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -19,7 +20,7 @@ public class ComplaintDetail {
 
     @Id
     @GeneratedValue
-    @UuidGenerator
+    @UuidGenerator(algorithm = UuidV7Generator.class)
     @Column(length = 36)
     String id;
 

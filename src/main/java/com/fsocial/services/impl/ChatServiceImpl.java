@@ -1,9 +1,8 @@
 package com.fsocial.services.impl;
 
-import com.fsocial.dto.message.ConversationDTO;
-import com.fsocial.dto.message.CreateConversationRequest;
-import com.fsocial.dto.message.MessageDTO;
-import com.fsocial.dto.message.SendMessageRequest;
+import com.fsocial.dto.ActorSnapshotDTO;
+import com.fsocial.dto.conversation.ConversationMemberDTO;
+import com.fsocial.dto.message.*;
 import com.fsocial.entity.Conversation;
 import com.fsocial.entity.ConversationMember;
 import com.fsocial.entity.Message;
@@ -26,16 +25,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatServiceImpl implements ChatService {
 
-    static final int PAGE_SIZE = 30;
+    static final int PAGE_SIZE = 10;
     static final String CURSOR_SEP = "_";
+    static final LocalDateTime EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0);
 
     ConversationRepository conversationRepository;
     ConversationMemberRepository conversationMemberRepository;
@@ -46,17 +48,36 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public List<ConversationDTO> getConversationsForUser(String userId) {
-        List<String> conversationIds = conversationMemberRepository.findConversationIdsByUserId(userId);
-        if (conversationIds.isEmpty()) return List.of();
+        List<ConversationMemberDTO> rows = conversationMemberRepository.findConversationAndUnreadCount(userId, EPOCH);
 
-        List<Conversation> conversations = conversationRepository.findAllById(conversationIds);
+        Map<String, ConversationDTO> byConversationId = new LinkedHashMap<>();
+        for (ConversationMemberDTO row : rows) {
+            ConversationDTO dto = byConversationId.computeIfAbsent(row.getId(), id -> ConversationDTO.builder()
+                    .id(row.getId())
+                    .type(row.getType())
+                    .name(row.getName())
+                    .avatarUrl(row.getConversationAvatar())
+                    .members(new java.util.ArrayList<>())
+                    .lastMessage(row.getMessageId() == null ? null : MessageDTO.builder()
+                            .id(row.getMessageId())
+                            .conversationId(row.getId())
+                            .senderId(row.getSenderId())
+                            .content(row.getContent())
+                            .messageType(row.getMessageType())
+                            .replyToId(row.getReplyToId())
+                            .createdAt(row.getCreatedAt())
+                            .build())
+                    .unreadCount(row.getUnreadCount())
+                    .build());
 
-        return conversations.stream()
-                .map(this::toConversationDTOWithDetails)
-                .sorted(Comparator.comparing(
-                        (ConversationDTO c) -> c.getLastMessage() == null ? LocalDateTime.MIN : c.getLastMessage().getCreatedAt())
-                        .reversed())
-                .toList();
+            dto.getMembers().add(ActorSnapshotDTO.builder()
+                    .userId(row.getUserId())
+                    .displayName(row.getDisplayName())
+                    .avatar(row.getAvatar())
+                    .build());
+        }
+
+        return List.copyOf(byConversationId.values());
     }
 
     private ConversationDTO toConversationDTOWithDetails(Conversation conversation) {
@@ -124,7 +145,17 @@ public class ChatServiceImpl implements ChatService {
                 ? messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, pageable)
                 : findAfterCursor(conversationId, cursor, pageable);
 
-        return messages.stream().map(chatMapper::toMessageDTO).toList();
+        List<String> senderIds = messages.stream().map(m -> m.getSender().getId()).distinct().toList();
+        Map<String, ActorSnapshotDTO> senderById = accountRepository.findOwnersByIdIn(senderIds).stream()
+                .collect(java.util.stream.Collectors.toMap(ActorSnapshotDTO::getUserId, a -> a));
+
+        return messages.stream()
+                .map(m -> {
+                    MessageDTO dto = chatMapper.toMessageDTO(m);
+                    dto.setActorSnapshotDTO(senderById.get(dto.getSenderId()));
+                    return dto;
+                })
+                .toList();
     }
 
     private List<Message> findAfterCursor(String conversationId, String cursor, Pageable pageable) {
@@ -152,18 +183,33 @@ public class ChatServiceImpl implements ChatService {
         Message replyTo = request.getReplyToId() == null ? null : messageRepository.getReferenceById(request.getReplyToId());
         Message message = messageRepository.save(Message.builder()
                 .conversation(conversationRef)
-                .senderId(userId)
+                .sender(accountRepository.getReferenceById(userId))
                 .content(request.getContent())
                 .messageType(request.getMessageType() == null ? com.fsocial.enums.MessageType.TEXT : request.getMessageType())
                 .replyTo(replyTo)
                 .build());
 
-        return chatMapper.toMessageDTO(message);
+        MessageDTO dto = chatMapper.toMessageDTO(message);
+        dto.setActorSnapshotDTO(ActorSnapshotDTO.builder()
+                        .userId(message.getSender().getId())
+                        .displayName(message.getSender().getDisplayName())
+                        .avatar(message.getSender().getAvatar())
+                .build());
+        return dto;
     }
 
     @Override
     public List<String> getMemberIds(String conversationId) {
         return conversationMemberRepository.findUserIdsByConversationId(conversationId);
+    }
+
+    @Override
+    public void markReadConversation(MarkReadDTO request, String userId) {
+        ConversationMember member =
+                conversationMemberRepository.findByConversationIdAndUserId(request.getConversationId(), userId)
+                        .orElseThrow(() -> new AppException(StatusCode.NOT_CONVERSATION_MEMBER));
+        member.setLastReadAt(LocalDateTime.now());
+        conversationMemberRepository.save(member);
     }
 
     private void requireMember(String conversationId, String userId) {

@@ -1,8 +1,10 @@
 package com.fsocial.controller;
 
+import com.fsocial.dto.message.MarkReadDTO;
 import com.fsocial.dto.message.MessageDTO;
 import com.fsocial.dto.message.SendMessageRequest;
 import com.fsocial.services.ChatService;
+import com.fsocial.services.impl.OnlineServiceImpl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,13 +25,10 @@ public class ChatWsController {
 
     ChatService chatService;
     SimpMessagingTemplate messagingTemplate;
+    OnlineServiceImpl onlineService;
 
     @MessageMapping("/chat.send")
     public void send(@Payload SendMessageRequest request, Principal principal) {
-        if (principal == null) {
-            log.warn("STOMP chat.send rejected: no authenticated principal (CONNECT auth likely failed)");
-            return;
-        }
         try {
             MessageDTO saved = chatService.sendMessage(principal.getName(), request);
             for (String memberId : chatService.getMemberIds(request.getConversationId())) {
@@ -42,5 +41,23 @@ public class ChatWsController {
             log.error("STOMP chat.send unexpected error for user {}", principal.getName(), e);
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", "Send failed");
         }
+    }
+
+    @MessageMapping("/chat/mark-read")
+    public void markRead(@Payload MarkReadDTO request, Principal principal){
+        try {
+            chatService.markReadConversation(request, principal.getName());
+        } catch (AppException e) {
+            log.warn("STOMP chat.send failed for user {}: {}", principal.getName(), e.getMessage());
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", e.getMessage());
+        } catch (Exception e) {
+            log.error("STOMP chat.send unexpected error for user {}", principal.getName(), e);
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", "Send failed");
+        }
+    }
+
+    @MessageMapping("/online/mark-online")
+    public void markOnline(Principal principal){
+        onlineService.setOnline(principal.getName());
     }
 }

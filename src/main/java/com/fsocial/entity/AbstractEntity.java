@@ -1,5 +1,6 @@
 package com.fsocial.entity;
 
+import com.fsocial.util.UuidV7Generator;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -21,7 +22,8 @@ import java.time.LocalDateTime;
 public abstract class AbstractEntity<T extends Serializable> implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue
+    @UuidGenerator(algorithm = UuidV7Generator.class)
     @Column()
     private String id;
 

@@ -10,7 +10,6 @@ import org.springframework.data.annotation.Id;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ActorSnapshotDTO {
-    @Id
     String userId;
     String displayName;
     String avatar;

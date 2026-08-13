@@ -22,4 +22,5 @@ public class ConversationDTO {
     String avatarUrl;
     List<ActorSnapshotDTO> members;
     MessageDTO lastMessage;
+    double unreadCount;
 }
