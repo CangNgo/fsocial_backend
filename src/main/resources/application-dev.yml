@@ -48,9 +48,9 @@ spring:
           starttls:
             enable: true
   datasource:
-    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/flowzone}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: true
     baseline-on-migrate: true
