@@ -35,7 +35,7 @@ import java.util.Optional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatServiceImpl implements ChatService {
 
-    static final int PAGE_SIZE = 10;
+    static final int PAGE_SIZE = 20;
     static final String CURSOR_SEP = "_";
     static final LocalDateTime EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0);
 
@@ -44,31 +44,37 @@ public class ChatServiceImpl implements ChatService {
     MessageRepository messageRepository;
     AccountRepository accountRepository;
     ChatMapper chatMapper;
+    private final OnlineServiceImpl onlineServiceImpl;
 
     @Override
     @Transactional(readOnly = true)
     public List<ConversationDTO> getConversationsForUser(String userId) {
         List<ConversationMemberDTO> rows = conversationMemberRepository.findConversationAndUnreadCount(userId, EPOCH);
-
+        OnlineServiceImpl onlineService;
         Map<String, ConversationDTO> byConversationId = new LinkedHashMap<>();
         for (ConversationMemberDTO row : rows) {
-            ConversationDTO dto = byConversationId.computeIfAbsent(row.getId(), id -> ConversationDTO.builder()
-                    .id(row.getId())
-                    .type(row.getType())
-                    .name(row.getName())
-                    .avatarUrl(row.getConversationAvatar())
-                    .members(new java.util.ArrayList<>())
-                    .lastMessage(row.getMessageId() == null ? null : MessageDTO.builder()
-                            .id(row.getMessageId())
-                            .conversationId(row.getId())
-                            .senderId(row.getSenderId())
-                            .content(row.getContent())
-                            .messageType(row.getMessageType())
-                            .replyToId(row.getReplyToId())
-                            .createdAt(row.getCreatedAt())
-                            .build())
-                    .unreadCount(row.getUnreadCount())
-                    .build());
+            ConversationDTO dto = byConversationId.computeIfAbsent(row.getId(), id -> {
+
+                return ConversationDTO.builder()
+                        .id(row.getId())
+                        .type(row.getType())
+                        .name(row.getName())
+                        .avatarUrl(row.getConversationAvatar())
+                        .members(new java.util.ArrayList<>())
+                        .lastMessage(row.getMessageId() == null ? null : MessageDTO.builder()
+                                                                         .id(row.getMessageId())
+                                                                         .conversationId(row.getId())
+                                                                         .senderId(row.getSenderId())
+                                                                         .content(row.getContent())
+                                                                         .messageType(row.getMessageType())
+                                                                         .replyToId(row.getReplyToId())
+                                                                         .createdAt(row.getCreatedAt())
+                                                                         .build())
+                        .unreadCount(row.getUnreadCount())
+                        .build();
+                    }
+
+            );
 
             dto.getMembers().add(ActorSnapshotDTO.builder()
                     .userId(row.getUserId())
@@ -210,6 +216,12 @@ public class ChatServiceImpl implements ChatService {
                         .orElseThrow(() -> new AppException(StatusCode.NOT_CONVERSATION_MEMBER));
         member.setLastReadAt(LocalDateTime.now());
         conversationMemberRepository.save(member);
+    }
+
+    @Override
+    public Map<String, Boolean> listConversationOnline(List<String> userId) {
+
+        return onlineServiceImpl.isOnlineBatch(userId);
     }
 
     private void requireMember(String conversationId, String userId) {

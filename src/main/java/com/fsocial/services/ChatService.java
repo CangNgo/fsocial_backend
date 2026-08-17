@@ -3,6 +3,7 @@ package com.fsocial.services;
 import com.fsocial.dto.message.*;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ChatService {
 
@@ -17,4 +18,6 @@ public interface ChatService {
     List<String> getMemberIds(String conversationId);
 
     void markReadConversation(MarkReadDTO request, String userId);
+
+    Map<String, Boolean> listConversationOnline(List<String> userId);
 }

@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
+import java.util.List;
 
 @Slf4j
 @Controller
@@ -57,7 +58,10 @@ public class ChatWsController {
     }
 
     @MessageMapping("/online/mark-online")
-    public void markOnline(Principal principal){
+    public void markOnline(@Payload List<String> userIds, Principal principal){
         onlineService.setOnline(principal.getName());
+        // send list conversation online
+        messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/conversation/online",
+                chatService.listConversationOnline(userIds));
     }
 }
