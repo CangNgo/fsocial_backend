@@ -25,8 +25,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -189,7 +188,6 @@ public class PostServiceImpl implements PostService {
                 .toList();
     }
 
-    @Override
     @Transactional(readOnly = true)
     public List<PostResponse> getPostsByUser(String userId, String requesterId) {
         Account owner = accountRepository.findById(userId).orElse(null);
@@ -342,7 +340,18 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<PostResponse> getMyPost(String userId) {
+    public List<PostResponse> getMyPost(String userId, String lastItem, String createdAt) {
+
+        Sort sort = Sort.by("createdAt").descending().and(Sort.by("id").descending());
+        ScrollPosition position;
+        if(lastItem.isEmpty()) {
+            position = ScrollPosition.keyset();
+        }else {
+            position = ScrollPosition.forward(Map.of("createdAt", createdAt, "id", lastItem));
+        }
+
+//        Window<PostResponse> data = postRepository.findByCreatedBy();
+
         return List.of();
     }
 }

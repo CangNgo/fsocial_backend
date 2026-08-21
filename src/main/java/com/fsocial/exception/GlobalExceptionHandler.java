@@ -3,6 +3,7 @@ package com.fsocial.exception;
 import com.fsocial.dto.ApiResponse;
 import com.fsocial.enums.AccountValidErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,6 +29,16 @@ public class GlobalExceptionHandler {
                 .message("Đã xảy ra lỗi hệ thống, vui lòng thử lại sau.")
                 .dateTime(LocalDateTime.now())
                 .data(null)
+                .build());
+    }
+
+    @ExceptionHandler(value = NonTransientAiException.class)
+    ResponseEntity<ApiResponse<Void>> handlingAiServiceException(NonTransientAiException exception) {
+        log.error("Lỗi gọi AI provider (model không hợp lệ, không tồn tại hoặc đã deprecated): {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ApiResponse.<Void>builder()
+                .statusCode(StatusCode.AI_SERVICE_FAILED.getCode())
+                .message("Dịch vụ AI hiện không khả dụng, vui lòng thử lại sau.")
+                .dateTime(LocalDateTime.now())
                 .build());
     }
 

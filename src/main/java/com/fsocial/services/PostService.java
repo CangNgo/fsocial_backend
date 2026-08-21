@@ -13,7 +13,6 @@ public interface PostService {
     boolean toggleLike(String postId, String userId) throws Exception;
     Integer CountLike(String postId, String userId);
     PostDTO sharePost (PostShareDTORequest dto );
-    List<PostResponse> getPostsByUser(String userId, String requesterId);
 
     // Methods from timelineService
     List<PostResponse> getPostsByUserId(String userId, int feedSize);
@@ -30,5 +29,5 @@ public interface PostService {
 
     List<PostResponse> getPostByFollowing(String userId);
 
-    List<PostResponse> getMyPost(String userId);
+    List<PostResponse> getMyPost(String userId, String lastItem, String createdAt);
 }

@@ -23,7 +23,6 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -97,10 +96,8 @@ public class JwtServiceImpl implements JwtService {
                 scope);
         return new JWTClaimsSet.Builder()
                 .subject(account.getId())
-                .issuer("FSOCIAL - FCODER")
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(durationTime, ChronoUnit.MINUTES).toEpochMilli()))
-                .jwtID(UUID.randomUUID().toString())
                 .claim("scope", scope)
                 .build();
     }

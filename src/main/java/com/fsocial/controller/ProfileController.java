@@ -41,10 +41,11 @@ public class ProfileController {
     }
 
     @GetMapping("/post")
-    public ApiResponse<List<PostResponse>> getPostProfile(@AuthenticationPrincipal Jwt jwt) {
+    public ApiResponse<List<PostResponse>> getPostProfile(@AuthenticationPrincipal Jwt jwt,@RequestParam(name = "last-item") String lastItem,
+                                                          @RequestParam(name = "created-at") String createAt) {
         int size = 10;
         return ApiResponse.<List<PostResponse>>builder()
-                .data(postService.getPostsByUserId(jwt.getSubject(), size))
+                .data(postService.getMyPost(jwt.getSubject(), lastItem, createAt))
                 .message("Lấy thông tin tài khoản thành công")
                 .build();
     }

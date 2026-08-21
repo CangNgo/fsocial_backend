@@ -119,16 +119,6 @@ public class PostController {
                 .build();
     }
 
-    @GetMapping("/user/{userId}")
-    public ApiResponse<List<PostResponse>> getPostsByUser(@PathVariable String userId,
-                                                          @AuthenticationPrincipal Jwt jwt) {
-        String requesterId = jwt.getSubject();
-        return ApiResponse.<List<PostResponse>>builder()
-                .data(postService.getPostsByUser(userId, requesterId))
-                .message("Lấy bài đăng thành công")
-                .build();
-    }
-
     //get post display timeline
     @GetMapping
     public ApiResponse<List<PostResponse>> getPosts(@AuthenticationPrincipal Jwt jwt,

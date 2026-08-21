@@ -80,6 +80,14 @@ spring:
           batch_size: 50
         order_inserts: true
         order_updates: true
+  ai:
+    openai:
+      api-key: ${GEMINI_KEY}
+      chat:
+        base-url: ${OPEN_BASE_URL}
+        completions-path: ${COMPLETIONS_PATH}
+        options:
+          model: ${MODEL}
 google:
   client-id: ${GOOGLE_CLIENT_ID}
   app-name: ${APP_NAME}
@@ -98,7 +106,7 @@ springdoc:
     doc-expansion: none
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
-  packages-to-scan: com.fsocial.postservice.controller
+  packages-to-scan: com.fsocial.controller
 jwt:
   signerKey: ${JWT_SIGNER_KEY}
   duration: 3

@@ -20,7 +20,7 @@ public class OpenAPIConfig {
     @Value("${server.port:8083}")
     private String serverPort;
 
-    @Value("${server.servlet.context-path:/api/v1/post}")
+    @Value("${server.servlet.context-path:/api/v1}")
     private String contextPath;
 
     @Bean
@@ -31,7 +31,7 @@ public class OpenAPIConfig {
                 .description("Local Development Server");
 
         Server gatewayServer = new Server()
-                .url("http://localhost:8888/api/v1/post")
+                .url("http://localhost:8888/api/v1")
                 .description("API Gateway Server");
 
         return new OpenAPI()

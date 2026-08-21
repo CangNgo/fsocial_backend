@@ -47,6 +47,8 @@ public enum StatusCode implements CodeEnum {
     CONVERSATION_NOT_FOUND(313, "Conversation not found", HttpStatus.NOT_FOUND),
     NOT_CONVERSATION_MEMBER(314, "You are not a member of this conversation", HttpStatus.FORBIDDEN),
     MESSAGE_SEND_FAILED(315, "Send message failed", HttpStatus.BAD_REQUEST),
+    AI_SERVICE_FAILED(316, "AI service failed", HttpStatus.BAD_GATEWAY),
+    FAQ_NOT_FOUND(317, "FAQ not found", HttpStatus.NOT_FOUND),
     ;
     private final int code;
     private final String message;
